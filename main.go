@@ -7,9 +7,10 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"time"
 )
 
-var slashAdd = tempest.Command{
+var slashRoll = tempest.Command{
 	Name:        "roll",
 	Description: "roll some dice, very nice.",
 	Options: []tempest.CommandOption{
@@ -56,6 +57,134 @@ var slashAdd = tempest.Command{
 	},
 }
 
+var slashProto1 = tempest.Command{
+	Name:        "proto1",
+	Description: "test",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		itx.SendReply(
+			tempest.ResponseMessageData{
+				Content: "abc",
+				Components: []*tempest.ComponentRow{
+					{
+						Type: tempest.ROW_COMPONENT_TYPE,
+						Components: []*tempest.Component{
+							{
+								Type:      tempest.USER_SELECT_COMPONENT_TYPE,
+								CustomID:  "baccarat_users",
+								MinValues: 1,
+								MaxValues: 16,
+							},
+						},
+					},
+				},
+			}, true)
+	},
+}
+
+var slashProto2 = tempest.Command{
+	Name:        "proto2",
+	Description: "test",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		uniqueButtonID := "btn_baccarat_play+" + itx.ID.String()
+
+		msg := tempest.ResponseMessageData{
+			Content: "test2",
+			Components: []*tempest.ComponentRow{
+				{
+					Type: tempest.ROW_COMPONENT_TYPE,
+					Components: []*tempest.Component{
+						{
+							CustomID: uniqueButtonID,
+							Type:     tempest.BUTTON_COMPONENT_TYPE,
+							Style:    uint8(tempest.PRIMARY_BUTTON_STYLE),
+							Label:    "Play",
+						},
+					},
+				},
+			},
+		}
+
+		itx.SendReply(msg, true)
+		signalChannel, stopFunction, err := itx.Client.AwaitComponent([]string{uniqueButtonID}, time.Minute*10)
+		if err != nil {
+			itx.SendFollowUp(tempest.ResponseMessageData{Content: "Failed to create component listener."}, false)
+			return
+		}
+
+		for {
+			citx := <-signalChannel
+			if citx == nil {
+				stopFunction()
+				break
+			}
+
+			err = itx.DeleteReply()
+			if err != nil {
+				itx.SendFollowUp(tempest.ResponseMessageData{Content: "Failed to edit response."}, false)
+				return
+			}
+		}
+	},
+}
+
+var slashProto3a = tempest.Command{
+	Name: "proto3a",
+	Description: "test",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		itx.SendLinearReply(
+			fmt.Sprintf("hey whats up there %s", itx.Member.User.Mention()),
+			false)
+	},
+}
+
+var slashProto3b = tempest.Command{
+	Name: "proto3b",
+	Description: "test",
+	Options: []tempest.CommandOption{
+		{
+			Name:        "x",
+			Description: "x",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    true,
+			MinValue:    1,
+		},
+	},
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		itx.SendLinearReply(
+			"you saw this",
+			true)
+		followUpContent := tempest.ResponseMessageData{
+			Content: "everyone saw that",
+		}
+		itx.SendFollowUp(followUpContent, false)
+	},
+}
+
+var slashProto4 = tempest.Command{
+	Name: "proto4",
+	Description: "test",
+}
+
+var slashProto4Foo = tempest.Command{
+	Name: "foo",
+	Description: "test",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		itx.SendLinearReply("hi", true)
+	},
+}
+
+var slashProto4Bar = tempest.Command{
+	Name: "bar",
+	Description: "test",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		itx.SendLinearReply("hi", true)
+	},
+}
+
+func resolveBaccaratUsers(itx tempest.ComponentInteraction) {
+	itx.AcknowledgeWithLinearMessage("hi its a test thx", false)
+}
+
 func main() {
 	publicKey := os.Getenv("TUKTUK_PUBLIC_KEY")
 	if 0 == len(publicKey) {
@@ -81,10 +210,24 @@ func main() {
 		Rest:      tempest.NewRest(botToken),
 	})
 
-	client.RegisterCommand(slashAdd)
-	log.Printf("Syncing commands")
-	if err := client.SyncCommands([]tempest.Snowflake{}, nil, false); err != nil {
-		log.Printf("Syncing commands failed: %s", err)
+	client.RegisterCommand(slashRoll)
+	client.RegisterCommand(slashProto1)
+	client.RegisterComponent([]string{"baccarat_users"}, resolveBaccaratUsers)
+	client.RegisterCommand(slashProto2)
+	client.RegisterCommand(slashProto3a)
+	client.RegisterCommand(slashProto3b)
+	client.RegisterCommand(slashProto4)
+	client.RegisterSubCommand(slashProto4Foo, slashProto4.Name)
+	client.RegisterSubCommand(slashProto4Bar, slashProto4.Name)
+
+	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
+		log.Printf("Sync commands inhibited")
+	} else {
+		log.Printf("Syncing commands")
+		if err :=
+			client.SyncCommands([]tempest.Snowflake{}, nil, false); err != nil {
+			log.Printf("Syncing commands failed: %s", err)
+		}
 	}
 
 	log.Printf("Listening")
