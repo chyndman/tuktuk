@@ -339,7 +339,10 @@ var slashTukkaratSolo = tempest.Command{
 		}
 		if walletTukens < betTukens {
 			itx.SendLinearReply(
-				fmt.Sprintf("You have %s, so you can't bet %s.", walletTukens, betTukens),
+				fmt.Sprintf(
+					"You have %s, so you can't bet %s.",
+					tukensDisplay(walletTukens),
+					tukensDisplay(betTukens)),
 				true)
 		} else {
 			player, banker := playBaccarat()
