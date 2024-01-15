@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
+	"github.com/jackc/pgx/v5"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"log"
 	"math/rand"
 	"os"
@@ -10,9 +14,15 @@ import (
 	"time"
 )
 
+var dbConn *pgx.Conn
+
+func tukensDisplay(tukens int64) string {
+	return message.NewPrinter(language.English).Sprintf("₺%d", tukens)
+}
+
 var slashRoll = tempest.Command{
 	Name:        "roll",
-	Description: "roll some dice, very nice.",
+	Description: "Roll some dice (very nice)",
 	Options: []tempest.CommandOption{
 		{
 			Name:        "sides",
@@ -57,132 +67,80 @@ var slashRoll = tempest.Command{
 	},
 }
 
-var slashProto1 = tempest.Command{
-	Name:        "proto1",
-	Description: "test",
-	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		itx.SendReply(
-			tempest.ResponseMessageData{
-				Content: "abc",
-				Components: []*tempest.ComponentRow{
-					{
-						Type: tempest.ROW_COMPONENT_TYPE,
-						Components: []*tempest.Component{
-							{
-								Type:      tempest.USER_SELECT_COMPONENT_TYPE,
-								CustomID:  "baccarat_users",
-								MinValues: 1,
-								MaxValues: 16,
-							},
-						},
-					},
-				},
-			}, true)
-	},
+var slashTuken = tempest.Command{
+	Name:        "tuken",
+	Description: "Tuken wallet operations",
 }
 
-var slashProto2 = tempest.Command{
-	Name:        "proto2",
-	Description: "test",
+var slashTukenMine = tempest.Command{
+	Name:        "mine",
+	Description: "Mine for Tukens",
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		uniqueButtonID := "btn_baccarat_play+" + itx.ID.String()
+		const cooldownHours = 4
+		ok := false
+		minedTukens := 1024 + int64(rand.NormFloat64()*128.0)
+		now := time.Now()
 
-		msg := tempest.ResponseMessageData{
-			Content: "test2",
-			Components: []*tempest.ComponentRow{
-				{
-					Type: tempest.ROW_COMPONENT_TYPE,
-					Components: []*tempest.Component{
-						{
-							CustomID: uniqueButtonID,
-							Type:     tempest.BUTTON_COMPONENT_TYPE,
-							Style:    uint8(tempest.PRIMARY_BUTTON_STYLE),
-							Label:    "Play",
-						},
-					},
-				},
-			},
-		}
-
-		itx.SendReply(msg, true)
-		signalChannel, stopFunction, err := itx.Client.AwaitComponent([]string{uniqueButtonID}, time.Minute*10)
+		guildSnf := itx.GuildID
+		userSnf := itx.Member.User.ID
+		var id int
+		var tukens int64
+		var timeLastMined time.Time
+		err := dbConn.QueryRow(
+			context.Background(),
+			"SELECT id, tukens, time_last_mined FROM tuken_wallet WHERE guild_snf=$1 AND user_snf=$2",
+			guildSnf,
+			userSnf).Scan(&id, &tukens, &timeLastMined)
 		if err != nil {
-			itx.SendFollowUp(tempest.ResponseMessageData{Content: "Failed to create component listener."}, false)
-			return
-		}
-
-		for {
-			citx := <-signalChannel
-			if citx == nil {
-				stopFunction()
-				break
+			log.Print(err)
+			if "no rows in result set" == err.Error() {
+				tukens = minedTukens
+				_, err = dbConn.Exec(
+					context.Background(),
+					"INSERT INTO tuken_wallet(guild_snf, user_snf, tukens, time_last_mined) "+
+						"VALUES($1, $2, $3, $4)",
+					guildSnf, userSnf, tukens, now)
+				if err != nil {
+					log.Print(err)
+				} else {
+					ok = true
+				}
 			}
-
-			err = itx.DeleteReply()
-			if err != nil {
-				itx.SendFollowUp(tempest.ResponseMessageData{Content: "Failed to edit response."}, false)
-				return
+		} else {
+			timeEarliestMine := timeLastMined.Add(time.Hour * cooldownHours)
+			if now.Before(timeEarliestMine) {
+				wait := timeEarliestMine.Sub(now).Round(time.Second)
+				itx.SendLinearReply(
+					fmt.Sprintf("Mining on cooldown (%s). You have %s.", wait, tukensDisplay(tukens)),
+					true)
+			} else {
+				tukens += minedTukens
+				_, err = dbConn.Exec(
+					context.Background(),
+					"UPDATE tuken_wallet SET tukens = $1, time_last_mined = $2 "+
+						"WHERE id = $3",
+					tukens, timeLastMined, id)
+				if err != nil {
+					log.Print(err)
+				} else {
+					ok = true
+				}
 			}
 		}
-	},
-}
 
-var slashProto3a = tempest.Command{
-	Name: "proto3a",
-	Description: "test",
-	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		itx.SendLinearReply(
-			fmt.Sprintf("hey whats up there %s", itx.Member.User.Mention()),
-			false)
-	},
-}
-
-var slashProto3b = tempest.Command{
-	Name: "proto3b",
-	Description: "test",
-	Options: []tempest.CommandOption{
-		{
-			Name:        "x",
-			Description: "x",
-			Type:        tempest.INTEGER_OPTION_TYPE,
-			Required:    true,
-			MinValue:    1,
-		},
-	},
-	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		itx.SendLinearReply(
-			"you saw this",
-			true)
-		followUpContent := tempest.ResponseMessageData{
-			Content: "everyone saw that",
+		if ok {
+			itx.SendLinearReply(
+				fmt.Sprintf("%s mined %s!", itx.Member.User.Mention(), tukensDisplay(minedTukens)),
+				false)
+			itx.SendFollowUp(
+				tempest.ResponseMessageData{
+					Content: fmt.Sprintf(
+						"You now have %s. You can mine again after %d hours.",
+						tukensDisplay(tukens), cooldownHours),
+				},
+				true)
 		}
-		itx.SendFollowUp(followUpContent, false)
 	},
-}
-
-var slashProto4 = tempest.Command{
-	Name: "proto4",
-	Description: "test",
-}
-
-var slashProto4Foo = tempest.Command{
-	Name: "foo",
-	Description: "test",
-	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		itx.SendLinearReply("hi", true)
-	},
-}
-
-var slashProto4Bar = tempest.Command{
-	Name: "bar",
-	Description: "test",
-	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		itx.SendLinearReply("hi", true)
-	},
-}
-
-func resolveBaccaratUsers(itx tempest.ComponentInteraction) {
-	itx.AcknowledgeWithLinearMessage("hi its a test thx", false)
 }
 
 func main() {
@@ -203,7 +161,33 @@ func main() {
 			portNum = portArgNum
 		}
 	}
+
+	pgCheckEnvs := []string{
+		"PGHOST",
+		"PGPORT",
+		"PGDATABASE",
+		"PGUSER",
+		"PGPASSWORD",
+	}
+
+	for _, env := range pgCheckEnvs {
+		if 0 == len(os.Getenv(env)) {
+			panic("No value for " + env)
+		}
+	}
+
 	addr := "0.0.0.0:" + strconv.Itoa(portNum)
+
+	dbConf, err := pgx.ParseConfig("")
+	if err != nil {
+		panic(err)
+	}
+
+	dbConn, err = pgx.ConnectConfig(context.Background(), dbConf)
+	if err != nil {
+		panic(err)
+	}
+	defer dbConn.Close(context.Background())
 
 	client := tempest.NewClient(tempest.ClientOptions{
 		PublicKey: publicKey,
@@ -211,27 +195,22 @@ func main() {
 	})
 
 	client.RegisterCommand(slashRoll)
-	client.RegisterCommand(slashProto1)
-	client.RegisterComponent([]string{"baccarat_users"}, resolveBaccaratUsers)
-	client.RegisterCommand(slashProto2)
-	client.RegisterCommand(slashProto3a)
-	client.RegisterCommand(slashProto3b)
-	client.RegisterCommand(slashProto4)
-	client.RegisterSubCommand(slashProto4Foo, slashProto4.Name)
-	client.RegisterSubCommand(slashProto4Bar, slashProto4.Name)
+	client.RegisterCommand(slashTuken)
+	client.RegisterSubCommand(slashTukenMine, slashTuken.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
 	} else {
 		log.Printf("Syncing commands")
-		if err :=
-			client.SyncCommands([]tempest.Snowflake{}, nil, false); err != nil {
+		err = client.SyncCommands([]tempest.Snowflake{}, nil, false)
+		if err != nil {
 			log.Printf("Syncing commands failed: %s", err)
 		}
 	}
 
 	log.Printf("Listening")
-	if err := client.ListenAndServe("/api/interactions", addr); err != nil {
+	err = client.ListenAndServe("/api/interactions", addr)
+	if err != nil {
 		log.Printf("Listening failed: %s", err)
 	}
 }
