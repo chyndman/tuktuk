@@ -119,7 +119,7 @@ var slashTukenMine = tempest.Command{
 					context.Background(),
 					"UPDATE tuken_wallet SET tukens = $1, time_last_mined = $2 "+
 						"WHERE id = $3",
-					tukens, timeLastMined, id)
+					tukens, now, id)
 				if err != nil {
 					log.Print(err)
 				} else {
