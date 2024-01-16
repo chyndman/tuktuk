@@ -395,10 +395,178 @@ var slashTukkaratSolo = tempest.Command{
 
 const BANDIT_SPEARMAN_PRICE = 140
 const BANDIT_ARCHER_PRICE = 172
+const BANDIT_SPEARMAN_HP = 0x0E
+const BANDIT_ARCHER_HP = 0x0B
 const BANDIT_SPEARMAN_DMGTO_SPEARMAN uint8 = 1
 const BANDIT_SPEARMAN_DMGTO_ARCHER uint8 = 1
 const BANDIT_ARCHER_DMGTO_SPEARMAN uint8 = 2
-const BANDIR_ARCHER_DMGTO_ARCHER uint8 = 1
+const BANDIT_ARCHER_DMGTO_ARCHER uint8 = 1
+
+type Army struct {
+	Spearmen []uint8
+	Archers  []uint8
+}
+
+func calcDmg(atk *Army, def *Army, dmg *Army) {
+	const BANDIT_SPEARMAN_DMGTO_SPEARMAN uint8 = 1
+	const BANDIT_SPEARMAN_DMGTO_ARCHER uint8 = 1
+	const BANDIT_ARCHER_DMGTO_SPEARMAN uint8 = 2
+	const BANDIT_ARCHER_DMGTO_ARCHER uint8 = 1
+
+	hitUndamagedSpearman := func(hp uint8) (hit bool) {
+		for i := range def.Spearmen {
+			if 0 < def.Spearmen[i] && 0 == dmg.Spearmen[i] {
+				dmg.Spearmen[i] = hp
+				hit = true
+				break
+			}
+		}
+		return
+	}
+
+	hitMinSpearman := func(hp uint8) (hit bool) {
+		var hpMin uint8 = 0xFF
+		target := -1
+		for i := range def.Spearmen {
+			if 0 < def.Spearmen[i] && dmg.Spearmen[i] < def.Spearmen[i] && (-1 == target || dmg.Spearmen[target] < hpMin) {
+				target = i
+				hpMin = dmg.Spearmen[i]
+			}
+		}
+		if 0 <= target {
+			hit = true
+			dmg.Spearmen[target] += hp
+		}
+		return
+	}
+
+	hitMinArcher := func(hp uint8) (hit bool) {
+		var hpMin uint8 = 0xFF
+		target := -1
+		for i := range def.Archers {
+			if 0 < def.Archers[i] && dmg.Archers[i] < def.Archers[i] && (-1 == target || dmg.Archers[target] < hpMin) {
+				target = i
+				hpMin = dmg.Archers[i]
+			}
+		}
+		if 0 <= target {
+			hit = true
+			dmg.Archers[target] += hp
+		}
+		return
+	}
+
+	for _ = range atk.Spearmen {
+		if hitUndamagedSpearman(BANDIT_SPEARMAN_DMGTO_SPEARMAN) {
+			continue
+		}
+		if hitMinArcher(BANDIT_SPEARMAN_DMGTO_ARCHER) {
+			continue
+		}
+		hitMinSpearman(BANDIT_SPEARMAN_DMGTO_SPEARMAN)
+	}
+
+	for _ = range atk.Archers {
+		if hitMinSpearman(BANDIT_ARCHER_DMGTO_SPEARMAN) {
+			continue
+		}
+		hitMinArcher(BANDIT_ARCHER_DMGTO_ARCHER)
+	}
+}
+
+func applyDmg(def *Army, dmg *Army) (spearmanKills int, archerKills int) {
+	for i := 0; i < len(def.Spearmen); i++ {
+		if 0 < dmg.Spearmen[i] {
+			if dmg.Spearmen[i] >= def.Spearmen[i] {
+				spearmanKills++
+				def.Spearmen[i] = 0
+			} else {
+				def.Spearmen[i] -= dmg.Spearmen[i]
+			}
+			dmg.Spearmen[i] = 0
+		}
+	}
+	for i := 0; i < len(def.Archers); i++ {
+		if 0 < dmg.Archers[i] {
+			if dmg.Archers[i] >= def.Archers[i] {
+				archerKills++
+				def.Archers[i] = 0
+			} else {
+				def.Archers[i] -= dmg.Archers[i]
+			}
+			dmg.Archers[i] = 0
+		}
+	}
+	return
+}
+
+func doBattle(
+	xSpearmenIn int,
+	xArchersIn int,
+	ySpearmenIn int,
+	yArchersIn int) (
+	xSpearmenLost int,
+	xArchersLost int,
+	ySpearmenLost int,
+	yArchersLost int) {
+	xsBegin := 0
+	xsEnd := xSpearmenIn
+	xaBegin := xsEnd
+	xaEnd := xaBegin + xArchersIn
+	ysBegin := xaEnd
+	ysEnd := ysBegin + ySpearmenIn
+	yaBegin := ysEnd
+	yaEnd := yaBegin + yArchersIn
+
+	arr := make([]uint8, 2 * yaEnd)
+	armyFull := arr[yaEnd:]
+	dmgFull := arr[:yaEnd]
+
+	x := Army{
+		Spearmen: armyFull[xsBegin:xsEnd],
+		Archers:  armyFull[xaBegin:xaEnd],
+	}
+	y := Army{
+		Spearmen: armyFull[ysBegin:ysEnd],
+		Archers:  armyFull[yaBegin:yaEnd],
+	}
+	dmgToX := Army{
+		Spearmen: dmgFull[xsBegin:xsEnd],
+		Archers:  dmgFull[xaBegin:xaEnd],
+	}
+	dmgToY := Army{
+		Spearmen: dmgFull[ysBegin:ysEnd],
+		Archers:  dmgFull[yaBegin:yaEnd],
+	}
+
+	for i := range x.Spearmen {
+		x.Spearmen[i] = BANDIT_SPEARMAN_HP
+	}
+	for i := range y.Spearmen {
+		y.Spearmen[i] = BANDIT_SPEARMAN_HP
+	}
+	for i := range x.Archers {
+		x.Archers[i] = BANDIT_ARCHER_HP
+	}
+	for i := range y.Archers {
+		y.Archers[i] = BANDIT_ARCHER_HP
+	}
+
+	for (xSpearmenLost < xSpearmenIn || xArchersLost < xArchersIn) && (ySpearmenLost < ySpearmenIn || yArchersLost < yArchersIn) {
+		calcDmg(&x, &y, &dmgToY)
+		calcDmg(&y, &x, &dmgToX)
+
+		xSpearmenKills, xArchersKills := applyDmg(&x, &dmgToX)
+		ySpearmenKills, yArchersKills := applyDmg(&y, &dmgToY)
+
+		xSpearmenLost += xSpearmenKills
+		xArchersLost += xArchersKills
+		ySpearmenLost += ySpearmenKills
+		yArchersLost += yArchersKills
+	}
+
+	return
+}
 
 var slashBandit = tempest.Command{
 	Name:        "bandit",
@@ -410,7 +578,9 @@ var slashBanditInfo = tempest.Command{
 	Description: "How the bandit stuff works",
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
 		itx.SendLinearReply(
-			fmt.Sprintf("TODO"),
+			fmt.Sprintf(
+				"spearmen are %s each, archers are %s each.\nTODO more info.",
+				tukensDisplay(BANDIT_SPEARMAN_PRICE), tukensDisplay(BANDIT_ARCHER_PRICE)),
 			true)
 	},
 }
@@ -538,20 +708,108 @@ var slashBanditRaid = tempest.Command{
 		},
 	},
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		// spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
-		// archersOpt, archersGiven := itx.GetOptionValue("archers")
+		memberOpt, _ := itx.GetOptionValue("member")
+		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
+		archersOpt, archersGiven := itx.GetOptionValue("archers")
 
-		// spearmen := 0
-		// if spearmenGiven {
-		// 	spearmen = int(spearmenOpt.(float64))
-		// }
-		// archers := 0
-		// if archersGiven {
-		// 	archers = int(archersOpt.(float64))
-		// }
+		targetSnf, _ := tempest.StringToSnowflake(memberOpt.(string))
+		spearmen := 0
+		if spearmenGiven {
+			spearmen = int(spearmenOpt.(float64))
+		}
+		archers := 0
+		if archersGiven {
+			archers = int(archersOpt.(float64))
+		}
 
 		msg := "noop"
 		ephem := true
+
+		guildSnf := itx.GuildID
+		userSnf := itx.Member.User.ID
+		var walletId int
+		var walletSpearmen int
+		var walletArchers int
+		var err error
+		var targetWalletId int
+		var targetWalletSpearmen int
+		var targetWalletArchers int
+
+		if userSnf == targetSnf {
+			msg = "Cannot raid yourself."
+		} else if spearmen == 0 && archers == 0 {
+			msg = "No bandits selected."
+		} else if err = dbConn.QueryRow(
+			context.Background(),
+			"SELECT id, spearmen, archers FROM wallet WHERE guild_snf=$1 AND user_snf=$2",
+			guildSnf,
+			userSnf).Scan(&walletId, &walletSpearmen, &walletArchers); err != nil {
+			log.Print(err)
+			msg = "You have no bandits. Start by using /tuken mine and /bandit hire."
+		} else if walletSpearmen < spearmen || walletArchers < archers {
+			msg = fmt.Sprintf(
+				"You have %d spearmen and %d archers, but wanted to use %d spearmen and %d archers.",
+				walletSpearmen, walletArchers, spearmen, archers)
+		} else if err = dbConn.QueryRow(
+			context.Background(),
+			"SELECT id, spearmen, archers FROM wallet WHERE guild_snf=$1 AND user_snf=$2",
+			guildSnf,
+			targetSnf).Scan(&targetWalletId, &targetWalletSpearmen, &targetWalletArchers); err != nil {
+			log.Print(err)
+			msg = "That member cannot be attacked because they aren't participating (no tukens or raiders)."
+		} else {
+			targetMention := tempest.User{ ID: targetSnf }.Mention()
+			ephem = false
+			msg = fmt.Sprintf(
+				"%s raided %s with %d spearmen and %d archers!",
+				itx.Member.User.Mention(), targetMention, spearmen, archers)
+
+			targetDefeated := false
+
+			if 0 == targetWalletSpearmen || 0 == targetWalletArchers {
+				targetDefeated = true
+				msg += "\nThe defender had no raiders, so there were no casualties."
+			} else {
+				spearmenLost, archersLost, targetSpearmenLost, targetArchersLost := doBattle(
+					spearmen, archers, targetWalletSpearmen, targetWalletArchers)
+
+				walletSpearmen -= spearmenLost
+				walletArchers -= archersLost
+				targetWalletSpearmen -= targetSpearmenLost
+				targetWalletArchers -= targetArchersLost
+				_, err = dbConn.Exec(
+					context.Background(),
+					"UPDATE wallet SET spearmen = $1, archers = $2 " +
+						"WHERE id = $3",
+					walletSpearmen, walletArchers, walletId)
+				if err != nil {
+					log.Print(err)
+				}
+				_, err = dbConn.Exec(
+					context.Background(),
+					"UPDATE wallet SET spearmen = $1, archers = $2 " +
+						"WHERE id = $3",
+					targetWalletSpearmen, targetWalletArchers, targetWalletId)
+				if err != nil {
+					log.Print(err)
+				}
+
+				if targetWalletSpearmen == 0 && targetWalletArchers == 0 {
+					targetDefeated = true
+				}
+
+				msg += fmt.Sprintf(
+					"\n%s lost %d spearmen and %d archers.\n%s lost %d spearmen and %d archers.",
+					itx.Member.User.Mention(), spearmenLost, archersLost,
+					targetMention, targetSpearmenLost, targetArchersLost)
+			}
+
+			if targetDefeated {
+				msg += "\nThe raid succeeded! CONSEQUENCE TODO"
+			} else {
+				msg += "\nThe raid was repelled!"
+			}
+		}
 
 		itx.SendLinearReply(msg, ephem)
 	},
