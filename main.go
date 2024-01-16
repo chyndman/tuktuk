@@ -88,7 +88,7 @@ var slashTukenMine = tempest.Command{
 		var timeLastMined time.Time
 		err := dbConn.QueryRow(
 			context.Background(),
-			"SELECT id, tukens, time_last_mined FROM tuken_wallet WHERE guild_snf=$1 AND user_snf=$2",
+			"SELECT id, tukens, time_last_mined FROM wallet WHERE guild_snf=$1 AND user_snf=$2",
 			guildSnf,
 			userSnf).Scan(&id, &tukens, &timeLastMined)
 		if err != nil {
@@ -97,7 +97,7 @@ var slashTukenMine = tempest.Command{
 				tukens = minedTukens
 				_, err = dbConn.Exec(
 					context.Background(),
-					"INSERT INTO tuken_wallet(guild_snf, user_snf, tukens, time_last_mined) "+
+					"INSERT INTO wallet(guild_snf, user_snf, tukens, time_last_mined) "+
 						"VALUES($1, $2, $3, $4)",
 					guildSnf, userSnf, tukens, now)
 				if err != nil {
@@ -117,7 +117,7 @@ var slashTukenMine = tempest.Command{
 				tukens += minedTukens
 				_, err = dbConn.Exec(
 					context.Background(),
-					"UPDATE tuken_wallet SET tukens = $1, time_last_mined = $2 "+
+					"UPDATE wallet SET tukens = $1, time_last_mined = $2 "+
 						"WHERE id = $3",
 					tukens, now, id)
 				if err != nil {
@@ -331,7 +331,7 @@ var slashTukkaratSolo = tempest.Command{
 		var walletTukens int64
 		err := dbConn.QueryRow(
 			context.Background(),
-			"SELECT id, tukens FROM tuken_wallet WHERE guild_snf=$1 AND user_snf=$2",
+			"SELECT id, tukens FROM wallet WHERE guild_snf=$1 AND user_snf=$2",
 			guildSnf,
 			userSnf).Scan(&walletId, &walletTukens)
 		if err != nil {
@@ -360,7 +360,7 @@ var slashTukkaratSolo = tempest.Command{
 			walletTukens = walletTukens + diffTukens
 			_, err = dbConn.Exec(
 				context.Background(),
-				"UPDATE tuken_wallet SET tukens = $1 "+
+				"UPDATE wallet SET tukens = $1 "+
 					"WHERE id = $2",
 				walletTukens, walletId)
 			if err != nil {
@@ -390,6 +390,125 @@ var slashTukkaratSolo = tempest.Command{
 					true)
 			}
 		}
+	},
+}
+
+const BANDIT_SPEARMAN_PRICE = 140
+const BANDIT_ARCHER_PRICE = 172
+const BANDIT_SPEARMAN_DMGTO_SPEARMAN uint8 = 1
+const BANDIT_SPEARMAN_DMGTO_ARCHER uint8 = 1
+const BANDIT_ARCHER_DMGTO_SPEARMAN uint8 = 2
+const BANDIR_ARCHER_DMGTO_ARCHER uint8 = 1
+
+var slashBandit = tempest.Command{
+	Name:        "bandit",
+	Description: "Bandit stuff",
+}
+
+var slashBanditInfo = tempest.Command{
+	Name:        "info",
+	Description: "How the bandit stuff works",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		itx.SendLinearReply(
+			fmt.Sprintf("TODO"),
+			true)
+	},
+}
+
+var slashBanditHire = tempest.Command{
+	Name:        "hire",
+	Description: "Purchase bandit units",
+	Options: []tempest.CommandOption{
+		{
+			Name:        "spearmen",
+			Description: "number of spearman to hire",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    false,
+			MinValue:    1,
+		},
+		{
+			Name:        "archers",
+			Description: "number of archers to hire",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    false,
+			MinValue:    1,
+		},
+	},
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
+		archersOpt, archersGiven := itx.GetOptionValue("archers")
+
+		spearmen := 0
+		if spearmenGiven {
+			spearmen = int(spearmenOpt.(float64))
+		}
+		archers := 0
+		if archersGiven {
+			archers = int(archersOpt.(float64))
+		}
+
+		msg := "noop"
+
+		spearmenCost := int64(spearmen * BANDIT_SPEARMAN_PRICE)
+		archersCost := int64(archers * BANDIT_ARCHER_PRICE)
+		cost := spearmenCost + archersCost
+
+		guildSnf := itx.GuildID
+		userSnf := itx.Member.User.ID
+		var walletId int
+		var walletTukens int64
+		var walletSpearmen int
+		var walletArchers int
+		err := dbConn.QueryRow(
+			context.Background(),
+			"SELECT id, tukens, spearmen, archers FROM wallet WHERE guild_snf=$1 AND user_snf=$2",
+			guildSnf,
+			userSnf).Scan(&walletId, &walletTukens, &walletSpearmen, &walletArchers)
+		if err != nil {
+			log.Print(err)
+			msg = "You have no tukens. Start by using /tuken mine."
+		} else if 0 == spearmen && 0 == archers {
+			msg = fmt.Sprintf(
+				"You have %s, %d spearmen and %d archers.",
+				tukensDisplay(walletTukens), walletSpearmen, walletArchers)
+		} else {
+			if walletTukens < cost {
+				msg = fmt.Sprintf(
+					"You have %s, so you can't buy these bandits for %s.",
+					tukensDisplay(walletTukens), tukensDisplay(cost))
+			} else {
+				walletTukens -= cost
+				walletSpearmen += spearmen
+				walletArchers += archers
+				_, err = dbConn.Exec(
+					context.Background(),
+					"UPDATE wallet SET tukens = $1, spearmen = $2, archers = $3 "+
+						"WHERE id = $4",
+					walletTukens, walletSpearmen, walletArchers, walletId)
+				if err != nil {
+					log.Print(err)
+					msg = "`Tuk-Tuk hit a pothole :(`"
+				} else {
+					msg = fmt.Sprintf(
+						"You now have %s, %d spearmen and %d archers.",
+						tukensDisplay(walletTukens), walletSpearmen, walletArchers)
+				}
+			}
+
+			msg += "\n```"
+			if 0 < spearmen {
+				msg += fmt.Sprintf(
+					"\n%d spearmen @ %s ea. total %s",
+					spearmen, tukensDisplay(BANDIT_SPEARMAN_PRICE), tukensDisplay(spearmenCost))
+			}
+			if 0 < archers {
+				msg += fmt.Sprintf(
+					"\n%d archers @ %s ea. total %s",
+					archers, tukensDisplay(BANDIT_ARCHER_PRICE), tukensDisplay(archersCost))
+			}
+			msg += "```"
+		}
+		itx.SendLinearReply(msg, true)
 	},
 }
 
@@ -449,6 +568,9 @@ func main() {
 	client.RegisterSubCommand(slashTukenMine, slashTuken.Name)
 	client.RegisterCommand(slashTukkarat)
 	client.RegisterSubCommand(slashTukkaratSolo, slashTukkarat.Name)
+	client.RegisterCommand(slashBandit)
+	client.RegisterSubCommand(slashBanditInfo, slashBandit.Name)
+	client.RegisterSubCommand(slashBanditHire, slashBandit.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
