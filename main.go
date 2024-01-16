@@ -512,6 +512,51 @@ var slashBanditHire = tempest.Command{
 	},
 }
 
+var slashBanditRaid = tempest.Command{
+	Name:        "raid",
+	Description: "Send bandit units to attack another member",
+	Options: []tempest.CommandOption{
+		{
+			Name:        "member",
+			Description: "target of your raid",
+			Type:        tempest.USER_OPTION_TYPE,
+			Required:    true,
+		},
+		{
+			Name:        "spearmen",
+			Description: "number of spearmen to send",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    false,
+			MinValue:    1,
+		},
+		{
+			Name:        "archers",
+			Description: "number of archers to send",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    false,
+			MinValue:    1,
+		},
+	},
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		// spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
+		// archersOpt, archersGiven := itx.GetOptionValue("archers")
+
+		// spearmen := 0
+		// if spearmenGiven {
+		// 	spearmen = int(spearmenOpt.(float64))
+		// }
+		// archers := 0
+		// if archersGiven {
+		// 	archers = int(archersOpt.(float64))
+		// }
+
+		msg := "noop"
+		ephem := true
+
+		itx.SendLinearReply(msg, ephem)
+	},
+}
+
 func main() {
 	publicKey := os.Getenv("TUKTUK_PUBLIC_KEY")
 	if 0 == len(publicKey) {
@@ -571,6 +616,7 @@ func main() {
 	client.RegisterCommand(slashBandit)
 	client.RegisterSubCommand(slashBanditInfo, slashBandit.Name)
 	client.RegisterSubCommand(slashBanditHire, slashBandit.Name)
+	client.RegisterSubCommand(slashBanditRaid, slashBandit.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
