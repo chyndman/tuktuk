@@ -281,8 +281,8 @@ func formatTukkaratCodeBlock(player BaccaratHand, banker BaccaratHand) string {
 		playerRole = "   "
 		bankerRole = "WIN"
 	}
-	playerLine := fmtLine("Passenger", playerRole, player)
-	bankerLine := fmtLine("Driver   ", bankerRole, banker)
+	playerLine := fmtLine("Pass.", playerRole, player)
+	bankerLine := fmtLine("Drv. ", bankerRole, banker)
 
 	return fmt.Sprintf("```\n%s\n%s\n```", playerLine, bankerLine)
 }
@@ -451,7 +451,7 @@ func calcDmg(atk *Army, def *Army, dmg *Army) {
 		return
 	}
 
-	for _ = range atk.Spearmen {
+	for range atk.Spearmen {
 		if hitUndamagedSpearman(BANDIT_SPEARMAN_DMGTO_SPEARMAN) {
 			continue
 		}
@@ -461,7 +461,7 @@ func calcDmg(atk *Army, def *Army, dmg *Army) {
 		hitMinSpearman(BANDIT_SPEARMAN_DMGTO_SPEARMAN)
 	}
 
-	for _ = range atk.Archers {
+	for range atk.Archers {
 		if hitMinSpearman(BANDIT_ARCHER_DMGTO_SPEARMAN) {
 			continue
 		}
@@ -513,7 +513,7 @@ func doBattle(
 	yaBegin := ysEnd
 	yaEnd := yaBegin + yArchersIn
 
-	arr := make([]uint8, 2 * yaEnd)
+	arr := make([]uint8, 2*yaEnd)
 	armyFull := arr[yaEnd:]
 	dmgFull := arr[:yaEnd]
 
@@ -753,7 +753,7 @@ var slashBanditRaid = tempest.Command{
 			log.Print(err)
 			msg = "That member cannot be attacked because they aren't participating (no tukens or raiders)."
 		} else {
-			targetMention := tempest.User{ ID: targetSnf }.Mention()
+			targetMention := tempest.User{ID: targetSnf}.Mention()
 			ephem = false
 			msg = fmt.Sprintf(
 				"%s raided %s with %d spearmen and %d archers!",
@@ -774,7 +774,7 @@ var slashBanditRaid = tempest.Command{
 				targetWalletArchers -= targetArchersLost
 				_, err = dbConn.Exec(
 					context.Background(),
-					"UPDATE wallet SET spearmen = $1, archers = $2 " +
+					"UPDATE wallet SET spearmen = $1, archers = $2 "+
 						"WHERE id = $3",
 					walletSpearmen, walletArchers, walletId)
 				if err != nil {
@@ -782,7 +782,7 @@ var slashBanditRaid = tempest.Command{
 				}
 				_, err = dbConn.Exec(
 					context.Background(),
-					"UPDATE wallet SET spearmen = $1, archers = $2 " +
+					"UPDATE wallet SET spearmen = $1, archers = $2 "+
 						"WHERE id = $3",
 					targetWalletSpearmen, targetWalletArchers, targetWalletId)
 				if err != nil {
@@ -807,6 +807,77 @@ var slashBanditRaid = tempest.Command{
 		}
 
 		itx.SendLinearReply(msg, ephem)
+	},
+}
+
+var slashBanditSim = tempest.Command{
+	Name:        "sim",
+	Description: "Simulate a battle between two forces",
+	Options: []tempest.CommandOption{
+		{
+			Name:        "atk_spearmen",
+			Description: "Attacker spearmen count",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    true,
+			MinValue:    0,
+			MaxValue:    999,
+		},
+		{
+			Name:        "atk_archers",
+			Description: "Attacker archers count",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    true,
+			MinValue:    0,
+			MaxValue:    999,
+		},
+		{
+			Name:        "def_spearmen",
+			Description: "Defender spearmen count",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    true,
+			MinValue:    0,
+			MaxValue:    999,
+		},
+		{
+			Name:        "def_archers",
+			Description: "Defender archers count",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    true,
+			MinValue:    0,
+			MaxValue:    999,
+		},
+	},
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		atkSpearmenOpt, _ := itx.GetOptionValue("atk_spearmen")
+		atkArchersOpt, _ := itx.GetOptionValue("atk_archers")
+		defSpearmenOpt, _ := itx.GetOptionValue("def_spearmen")
+		defArchersOpt, _ := itx.GetOptionValue("def_archers")
+
+		atkSpearmen := int(atkSpearmenOpt.(float64))
+		atkArchers := int(atkArchersOpt.(float64))
+		defSpearmen := int(defSpearmenOpt.(float64))
+		defArchers := int(defArchersOpt.(float64))
+
+		atkSpearmenLost, atkArchersLost, defSpearmenLost, defArchersLost := doBattle(
+			atkSpearmen, atkArchers, defSpearmen, defArchers)
+
+		atkSpearmenLiving := atkSpearmen - atkSpearmenLost
+		atkArchersLiving := atkArchers - atkArchersLost
+		defSpearmenLiving := defSpearmen - defSpearmenLost
+		defArchersLiving := defArchers - defArchersLost
+
+		atkWin, defWin := "   ", "   "
+		if 0 != atkSpearmenLiving || 0 != atkArchersLiving {
+			atkWin = "WIN"
+		} else if 0 != defSpearmenLiving || 0 != defArchersLiving {
+			defWin = "WIN"
+		}
+
+		itx.SendLinearReply(
+			fmt.Sprintf(
+				"```\nSurvivors   Spr  Arc\nAtk. %s    %3d  %3d\nDef. %s    %3d  %3d```",
+				atkWin, atkSpearmenLiving, atkArchersLiving,
+				defWin, defSpearmenLiving, defArchersLiving), true)
 	},
 }
 
@@ -870,6 +941,7 @@ func main() {
 	client.RegisterSubCommand(slashBanditInfo, slashBandit.Name)
 	client.RegisterSubCommand(slashBanditHire, slashBandit.Name)
 	client.RegisterSubCommand(slashBanditRaid, slashBandit.Name)
+	client.RegisterSubCommand(slashBanditSim, slashBandit.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
