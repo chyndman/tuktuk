@@ -395,8 +395,8 @@ var slashTukkaratSolo = tempest.Command{
 
 const BANDIT_SPEARMAN_PRICE = 140
 const BANDIT_ARCHER_PRICE = 172
-const BANDIT_SPEARMAN_HP = 0x0E
-const BANDIT_ARCHER_HP = 0x0B
+const BANDIT_SPEARMAN_HP uint8 = 0x0E
+const BANDIT_ARCHER_HP uint8 = 0x0B
 const BANDIT_SPEARMAN_DMGTO_SPEARMAN uint8 = 1
 const BANDIT_SPEARMAN_DMGTO_ARCHER uint8 = 1
 const BANDIT_ARCHER_DMGTO_SPEARMAN uint8 = 2
@@ -408,11 +408,6 @@ type Army struct {
 }
 
 func calcDmg(atk *Army, def *Army, dmg *Army) {
-	const BANDIT_SPEARMAN_DMGTO_SPEARMAN uint8 = 1
-	const BANDIT_SPEARMAN_DMGTO_ARCHER uint8 = 1
-	const BANDIT_ARCHER_DMGTO_SPEARMAN uint8 = 2
-	const BANDIT_ARCHER_DMGTO_ARCHER uint8 = 1
-
 	hitUndamagedSpearman := func(hp uint8) (hit bool) {
 		for i := range def.Spearmen {
 			if 0 < def.Spearmen[i] && 0 == dmg.Spearmen[i] {
@@ -766,7 +761,7 @@ var slashBanditRaid = tempest.Command{
 
 			targetDefeated := false
 
-			if 0 == targetWalletSpearmen || 0 == targetWalletArchers {
+			if 0 == targetWalletSpearmen && 0 == targetWalletArchers {
 				targetDefeated = true
 				msg += "\nThe defender had no raiders, so there were no casualties."
 			} else {
