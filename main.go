@@ -78,7 +78,7 @@ var slashTukenMine = tempest.Command{
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
 		const cooldownHours = 4
 		ok := false
-		minedTukens := 1024 + int64(rand.NormFloat64()*128.0)
+		minedTukens := 1200 + int64(rand.NormFloat64() * 80.0)
 		now := time.Now()
 
 		guildSnf := itx.GuildID
