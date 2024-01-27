@@ -18,6 +18,29 @@ func getGuildUserKey(itx *tempest.CommandInteraction) (gid int64, uid int64) {
 	return int64(itx.GuildID), int64(itx.Member.User.ID)
 }
 
+func handlerFinish(itx *tempest.CommandInteraction, msgPub string, msgPriv string, handlerError error) {
+	if handlerError != nil {
+		log.Print(handlerError)
+	}
+
+	reply := handlers.DefaultErrorMsg
+	replyEphemeral := true
+	var followUp string
+
+	if 0 < len(msgPub) {
+		reply = msgPub
+		replyEphemeral = false
+		followUp = msgPriv
+	} else if 0 < len(msgPriv) {
+		reply = msgPriv
+	}
+
+	itx.SendLinearReply(reply, replyEphemeral)
+	if 0 < len(followUp) {
+		itx.SendFollowUp(tempest.ResponseMessageData{Content: followUp}, true)
+	}
+}
+
 var slashRoll = tempest.Command{
 	Name:        "roll",
 	Description: "Roll some dice (very nice)",
@@ -75,14 +98,8 @@ var slashTukenMine = tempest.Command{
 	Description: "Mine for Tukens",
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
 		gid, uid := getGuildUserKey(itx)
-		msg, ephemeral, followUp, err := handlers.TukenMine(context.Background(), dbConn, gid, uid)
-		if nil != err {
-			log.Print(err)
-		}
-		itx.SendLinearReply(msg, ephemeral)
-		if 0 < len(followUp) {
-			itx.SendFollowUp(tempest.ResponseMessageData{Content: followUp}, false)
-		}
+		msgPub, msgPriv, err := handlers.TukenMine(context.Background(), dbConn, gid, uid)
+		handlerFinish(itx, msgPub, msgPriv, err)
 	},
 }
 
@@ -138,14 +155,8 @@ var slashTukkaratSolo = tempest.Command{
 			outcome = handlers.TukkaratOutcomeTie
 		}
 		gid, uid := getGuildUserKey(itx)
-		msg, ephemeral, followUp, err := handlers.TukkaratSolo(context.Background(), dbConn, gid, uid, betTukens, outcome)
-		if nil != err {
-			log.Print(err)
-		}
-		itx.SendLinearReply(msg, ephemeral)
-		if 0 < len(followUp) {
-			itx.SendFollowUp(tempest.ResponseMessageData{Content: followUp}, false)
-		}
+		msgPub, msgPriv, err := handlers.TukkaratSolo(context.Background(), dbConn, gid, uid, betTukens, outcome)
+		handlerFinish(itx, msgPub, msgPriv, err)
 	},
 }
 
@@ -202,7 +213,8 @@ var slashBanditSim = tempest.Command{
 		defSpearmen := int(defSpearmenOpt.(float64))
 		defArchers := int(defArchersOpt.(float64))
 
-		itx.SendLinearReply(handlers.BanditSim(atkSpearmen, atkArchers, defSpearmen, defArchers), false)
+		msgPriv := handlers.BanditSim(atkSpearmen, atkArchers, defSpearmen, defArchers)
+		handlerFinish(itx, "", msgPriv, nil)
 	},
 }
 
@@ -239,11 +251,8 @@ var slashBanditHire = tempest.Command{
 		}
 
 		gid, uid := getGuildUserKey(itx)
-		msg, err := handlers.BanditHire(context.Background(), dbConn, gid, uid, spearmen, archers)
-		if nil != err {
-			log.Print(err)
-		}
-		itx.SendLinearReply(msg, true)
+		msgPriv, err := handlers.BanditHire(context.Background(), dbConn, gid, uid, spearmen, archers)
+		handlerFinish(itx, msgPriv, "", err)
 	},
 }
 

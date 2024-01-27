@@ -18,10 +18,7 @@ const (
 	TukkaratOutcomeTie
 )
 
-func TukkaratSolo(ctx context.Context, db *pgx.Conn, gid int64, uid int64, tukens int64, outcome TukkaratOutcome) (msg string, ephemeral bool, followUp string, err error) {
-	msg = DefaultErrorMsg
-	ephemeral = true
-
+func TukkaratSolo(ctx context.Context, db *pgx.Conn, gid int64, uid int64, tukens int64, outcome TukkaratOutcome) (msgPub string, msgPriv string, err error) {
 	wallet, err := models.WalletByGuildUser(
 		context.Background(),
 		db,
@@ -29,7 +26,7 @@ func TukkaratSolo(ctx context.Context, db *pgx.Conn, gid int64, uid int64, tuken
 		uid)
 	if err == nil {
 		if wallet.Tukens < tukens {
-			msg = fmt.Sprintf(
+			msgPriv = fmt.Sprintf(
 				"Unable to bet %s. You have %s.",
 				tukensDisplay(tukens),
 				tukensDisplay(wallet.Tukens))
@@ -53,21 +50,20 @@ func TukkaratSolo(ctx context.Context, db *pgx.Conn, gid int64, uid int64, tuken
 					absDiffTukens = 0 - diffTukens
 				}
 				blk := formatTukkaratCodeBlock(player, banker)
-				msg = fmt.Sprintf(
+				msgPub = fmt.Sprintf(
 					"%s %s %s in a game of Tukkarat!\n%s",
 					mention(uid),
 					outcomeStr,
 					tukensDisplay(absDiffTukens),
 					blk)
-				ephemeral = false
-				followUp = fmt.Sprintf(
+				msgPriv = fmt.Sprintf(
 					"You now have %s.",
 					tukensDisplay(wallet.Tukens))
 			}
 		}
 	} else if errors.Is(err, pgx.ErrNoRows) {
 		err = nil
-		msg = NoWalletErrorMsg
+		msgPriv = NoWalletErrorMsg
 	}
 
 	return

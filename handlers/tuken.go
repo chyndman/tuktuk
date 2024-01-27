@@ -10,10 +10,7 @@ import (
 	"time"
 )
 
-func TukenMine(ctx context.Context, db *pgx.Conn, gid int64, uid int64) (msg string, ephemeral bool, followUp string, err error) {
-	msg = DefaultErrorMsg
-	ephemeral = true
-
+func TukenMine(ctx context.Context, db *pgx.Conn, gid int64, uid int64) (msgPub string, msgPriv string, err error) {
 	const cooldownHours = 4
 	minedTukens := 1200 + int64(rand.NormFloat64()*80.0)
 	now := time.Now()
@@ -27,7 +24,7 @@ func TukenMine(ctx context.Context, db *pgx.Conn, gid int64, uid int64) (msg str
 		}
 		if now.Before(timeEarliestMine) {
 			wait := timeEarliestMine.Sub(now).Round(time.Second)
-			msg = fmt.Sprintf(
+			msgPriv = fmt.Sprintf(
 				"Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
 		} else {
 			err = wallet.UpdateTukensMine(
@@ -51,10 +48,9 @@ func TukenMine(ctx context.Context, db *pgx.Conn, gid int64, uid int64) (msg str
 	}
 
 	if didMine {
-		ephemeral = false
-		msg = fmt.Sprintf(
+		msgPub = fmt.Sprintf(
 			"%s mined %s!", mention(uid), tukensDisplay(minedTukens))
-		followUp = fmt.Sprintf(
+		msgPriv = fmt.Sprintf(
 			"You now have %s.", tukensDisplay(wallet.Tukens))
 	}
 

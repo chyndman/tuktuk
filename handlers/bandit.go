@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func BanditSim(atkSpearmen int, atkArchers int, defSpearmen int, defArchers int) (msg string) {
+func BanditSim(atkSpearmen int, atkArchers int, defSpearmen int, defArchers int) (msgPriv string) {
 	atkSpearmenLost, atkArchersLost, defSpearmenLost, defArchersLost := aot.Battle(
 		atkSpearmen, atkArchers, defSpearmen, defArchers)
 
@@ -31,10 +31,8 @@ func BanditSim(atkSpearmen int, atkArchers int, defSpearmen int, defArchers int)
 		defWin, defSpearmenLiving, defArchersLiving)
 }
 
-func BanditHire(ctx context.Context, db *pgx.Conn, gid int64, uid int64, spearmen int, archers int) (msg string, err error) {
-	msg = DefaultErrorMsg
-
-	spearmenPrice := int64(spearmen) * int64(aot.BanditSpearmanPrice)
+func BanditHire(ctx context.Context, db *pgx.Conn, gid int64, uid int64, spearmen int, archers int) (msgPriv string, err error) {
+	spearmenPrice := int64(spearmen) * int64(aot.nnnditSpearmanPrice)
 	archersPrice := int64(archers) * int64(aot.BanditArcherPrice)
 	totalPrice := spearmenPrice + archersPrice
 	blk := fmt.Sprintf(
@@ -46,12 +44,12 @@ func BanditHire(ctx context.Context, db *pgx.Conn, gid int64, uid int64, spearme
 	wallet, err := models.WalletByGuildUser(ctx, db, gid, uid)
 	if err == nil {
 		if totalPrice == 0 {
-			msg = fmt.Sprintf(
+			msgPriv = fmt.Sprintf(
 				"You have %s.%s",
 				tukensDisplay(wallet.Tukens),
 				blk)
 		} else if wallet.Tukens < totalPrice {
-			msg = fmt.Sprintf(
+			msgPriv = fmt.Sprintf(
 				"Unable to hire. You have %s.%s",
 				tukensDisplay(wallet.Tukens),
 				blk)
@@ -59,15 +57,15 @@ func BanditHire(ctx context.Context, db *pgx.Conn, gid int64, uid int64, spearme
 			err = wallet.UpdateTukens(ctx, db, wallet.Tukens-totalPrice)
 			// TODO game update
 			if err == nil {
-				msg = fmt.Sprintf(
-					"Banndits hired. You now have %s.%s",
+				msgPriv = fmt.Sprintf(
+					"Bandits hired. You now have %s.%s",
 					tukensDisplay(wallet.Tukens),
 					blk)
 			}
 		}
 	} else if errors.Is(err, pgx.ErrNoRows) {
 		err = nil
-		msg = NoWalletErrorMsg
+		msgPriv = NoWalletErrorMsg
 	}
 
 	return
