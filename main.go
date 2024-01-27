@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
+	"github.com/chyndman/tuktuk/models"
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -16,8 +18,18 @@ import (
 
 var dbConn *pgx.Conn
 
+const TukTukErrMsg = "`Tuk-Tuk hit a pothole :(`"
+
+func getGuildUserKey(itx *tempest.CommandInteraction) (gid int64, uid int64) {
+	return int64(itx.GuildID), int64(itx.Member.User.ID)
+}
+
 func tukensDisplay(tukens int64) string {
 	return message.NewPrinter(language.English).Sprintf("₺%d", tukens)
+}
+
+func mention(uid int64) string {
+	return tempest.User{ID: tempest.Snowflake(uid)}.Mention()
 }
 
 var slashRoll = tempest.Command{
@@ -72,73 +84,74 @@ var slashTuken = tempest.Command{
 	Description: "Tuken wallet operations",
 }
 
+func doTukenMine(gid int64, uid int64) (msg string, ephemeral bool, followUp string) {
+	msg = TukTukErrMsg
+	ephemeral = true
+
+	const cooldownHours = 4
+	minedTukens := 1200 + int64(rand.NormFloat64()*80.0)
+	now := time.Now()
+	didMine := false
+
+	wallet, err := models.WalletByGuildUser(
+		context.Background(),
+		dbConn,
+		gid,
+		uid)
+	if err == nil {
+		var timeEarliestMine time.Time
+		if !wallet.TimeLastMined.IsZero() {
+			timeEarliestMine = wallet.TimeLastMined.Add(time.Hour * cooldownHours)
+		}
+		if now.Before(timeEarliestMine) {
+			wait := timeEarliestMine.Sub(now).Round(time.Second)
+			msg = fmt.Sprintf(
+				"Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
+		} else {
+			err = wallet.UpdateTukensMine(
+				context.Background(),
+				dbConn,
+				wallet.Tukens+minedTukens,
+				now)
+			if err != nil {
+				log.Print(err)
+			} else {
+				didMine = true
+			}
+		}
+	} else if errors.Is(err, pgx.ErrNoRows) {
+		wallet.GuildID = gid
+		wallet.UserID = uid
+		wallet.Tukens = minedTukens
+		wallet.TimeLastMined = now
+		err = wallet.Insert(context.Background(), dbConn)
+		if err == nil {
+			didMine = true
+		}
+	} else {
+		log.Print(err)
+	}
+
+	if didMine {
+		ephemeral = false
+		msg = fmt.Sprintf(
+			"%s mined %s!", mention(uid), tukensDisplay(minedTukens))
+		followUp = fmt.Sprintf(
+			"You now have %s.", tukensDisplay(wallet.Tukens))
+	}
+
+	return
+}
+
 var slashTukenMine = tempest.Command{
 	Name:        "mine",
 	Description: "Mine for Tukens",
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		const cooldownHours = 4
-		ok := false
-		minedTukens := 1200 + int64(rand.NormFloat64() * 80.0)
-		now := time.Now()
-
-		guildSnf := itx.GuildID
-		userSnf := itx.Member.User.ID
-		var id int
-		var tukens int64
-		var timeLastMined time.Time
-		err := dbConn.QueryRow(
-			context.Background(),
-			"SELECT id, tukens, time_last_mined FROM wallet WHERE guild_snf=$1 AND user_snf=$2",
-			guildSnf,
-			userSnf).Scan(&id, &tukens, &timeLastMined)
-		if err != nil {
-			log.Print(err)
-			if "no rows in result set" == err.Error() {
-				tukens = minedTukens
-				_, err = dbConn.Exec(
-					context.Background(),
-					"INSERT INTO wallet(guild_snf, user_snf, tukens, time_last_mined) "+
-						"VALUES($1, $2, $3, $4)",
-					guildSnf, userSnf, tukens, now)
-				if err != nil {
-					log.Print(err)
-				} else {
-					ok = true
-				}
-			}
-		} else {
-			timeEarliestMine := timeLastMined.Add(time.Hour * cooldownHours)
-			if now.Before(timeEarliestMine) {
-				wait := timeEarliestMine.Sub(now).Round(time.Second)
-				itx.SendLinearReply(
-					fmt.Sprintf("Mining on cooldown (%s). You have %s.", wait, tukensDisplay(tukens)),
-					true)
-			} else {
-				tukens += minedTukens
-				_, err = dbConn.Exec(
-					context.Background(),
-					"UPDATE wallet SET tukens = $1, time_last_mined = $2 "+
-						"WHERE id = $3",
-					tukens, now, id)
-				if err != nil {
-					log.Print(err)
-				} else {
-					ok = true
-				}
-			}
-		}
-
-		if ok {
-			itx.SendLinearReply(
-				fmt.Sprintf("%s mined %s!", itx.Member.User.Mention(), tukensDisplay(minedTukens)),
-				false)
-			itx.SendFollowUp(
-				tempest.ResponseMessageData{
-					Content: fmt.Sprintf(
-						"You now have %s. You can mine again after %d hours.",
-						tukensDisplay(tukens), cooldownHours),
-				},
-				true)
+		gid, uid := getGuildUserKey(itx)
+		msg, ephemeral, followUp := doTukenMine(gid, uid)
+		itx.SendLinearReply(msg, ephemeral)
+		if 0 < len(followUp) {
+			itx.SendFollowUp(tempest.ResponseMessageData{Content: followUp}, false)
 		}
 	},
 }
