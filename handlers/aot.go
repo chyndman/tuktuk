@@ -13,7 +13,7 @@ import (
 func AOTJoin(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msgPub string, msgPriv string, err error) {
 	player, err := models.AOTPlayerByGuildUser(ctx, db, gid, uid)
 	if err == nil {
-		msgPriv = "You're already in the game."
+		msgPriv = "⚠️ You're already in the game."
 	} else if errors.Is(err, pgx.ErrNoRows) {
 		var wallet models.Wallet
 		wallet, err = models.WalletByGuildUser(ctx, db, gid, uid)

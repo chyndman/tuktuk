@@ -57,7 +57,7 @@ func BanditHire(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, spe
 					blk)
 			} else if wallet.Tukens < totalPrice {
 				msgPriv = fmt.Sprintf(
-					"Unable to hire. You have %s, %d spearmen and %d archers.%s",
+					"⚠️ Unable to hire. You have %s, %d spearmen and %d archers.%s",
 					tukensDisplay(wallet.Tukens),
 					player.Spearmen,
 					player.Archers,

@@ -29,7 +29,7 @@ func TukenMine(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msg
 		if now.Before(timeEarliestMine) {
 			wait := timeEarliestMine.Sub(now).Round(time.Second)
 			msgPriv = fmt.Sprintf(
-				"Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
+				"⚠️ Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
 		} else {
 			err = wallet.UpdateTukensMine(
 				context.Background(),

@@ -28,7 +28,7 @@ func TukkaratSolo(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, t
 	if err == nil {
 		if wallet.Tukens < tukens {
 			msgPriv = fmt.Sprintf(
-				"Unable to bet %s. You have %s.",
+				"⚠️ Unable to bet %s. You have %s.",
 				tukensDisplay(tukens),
 				tukensDisplay(wallet.Tukens))
 		} else {
