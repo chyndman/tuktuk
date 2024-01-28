@@ -26,6 +26,16 @@ func WalletByGuildUser(ctx context.Context, db *pgxpool.Conn, gid int64, uid int
 	return
 }
 
+func WalletsByGuild(ctx context.Context, db *pgxpool.Conn, gid int64) (ws []Wallet, err error) {
+	var rows pgx.Rows
+	rows, _ = db.Query(
+		ctx,
+		"SELECT * FROM wallet WHERE guild_id = $1",
+		gid)
+	ws, err = pgx.CollectRows(rows, pgx.RowToStructByName[Wallet])
+	return
+}
+
 func (w *Wallet) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 	_, err = db.Exec(
 		ctx,

@@ -26,6 +26,16 @@ func AOTRaidByGuildAttacker(ctx context.Context, db *pgxpool.Conn, gid int64, ui
 	return
 }
 
+func AOTRaidsByGuild(ctx context.Context, db *pgxpool.Conn, gid int64) (rs []AOTRaid, err error) {
+	var rows pgx.Rows
+	rows, _ = db.Query(
+		ctx,
+		"SELECT * FROM aot_raid WHERE guild_id = $1",
+		gid)
+	rs, err = pgx.CollectRows(rows, pgx.RowToStructByName[AOTRaid])
+	return
+}
+
 func (r *AOTRaid) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 	_, err = db.Exec(
 		ctx,
@@ -46,5 +56,13 @@ func (r *AOTRaid) Update(ctx context.Context, db *pgxpool.Conn, uidDef int64, sp
 		r.Spearmen = spearmen
 		r.Archers = archers
 	}
+	return
+}
+
+func DeleteAOTRaidsByGuild(ctx context.Context, db *pgxpool.Conn, gid int64) (err error) {
+	_, err = db.Exec(
+		ctx,
+		"DELETE FROM aot_raid WHERE guild_id = $1",
+		gid)
 	return
 }
