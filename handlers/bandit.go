@@ -7,6 +7,7 @@ import (
 	"github.com/chyndman/tuktuk/aot"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func BanditSim(atkSpearmen int, atkArchers int, defSpearmen int, defArchers int) (msgPriv string) {
@@ -31,8 +32,8 @@ func BanditSim(atkSpearmen int, atkArchers int, defSpearmen int, defArchers int)
 		defWin, defSpearmenLiving, defArchersLiving)
 }
 
-func BanditHire(ctx context.Context, db *pgx.Conn, gid int64, uid int64, spearmen int, archers int) (msgPriv string, err error) {
-	spearmenPrice := int64(spearmen) * int64(aot.nnnditSpearmanPrice)
+func BanditHire(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, spearmen int, archers int) (msgPriv string, err error) {
+	spearmenPrice := int64(spearmen) * int64(aot.BanditSpearmanPrice)
 	archersPrice := int64(archers) * int64(aot.BanditArcherPrice)
 	totalPrice := spearmenPrice + archersPrice
 	blk := fmt.Sprintf(

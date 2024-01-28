@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
 
@@ -13,7 +14,7 @@ type Wallet struct {
 	TimeLastMined time.Time
 }
 
-func WalletByGuildUser(ctx context.Context, db *pgx.Conn, gid int64, uid int64) (w Wallet, err error) {
+func WalletByGuildUser(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (w Wallet, err error) {
 	var rows pgx.Rows
 	rows, err = db.Query(
 		ctx,
@@ -25,7 +26,7 @@ func WalletByGuildUser(ctx context.Context, db *pgx.Conn, gid int64, uid int64) 
 	return
 }
 
-func (w *Wallet) Insert(ctx context.Context, db *pgx.Conn) (err error) {
+func (w *Wallet) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 	_, err = db.Exec(
 		ctx,
 		"INSERT INTO wallet(guild_id, user_id, tukens, time_last_mined) "+
@@ -34,7 +35,7 @@ func (w *Wallet) Insert(ctx context.Context, db *pgx.Conn) (err error) {
 	return
 }
 
-func (w *Wallet) UpdateTukens(ctx context.Context, db *pgx.Conn, tukens int64) (err error) {
+func (w *Wallet) UpdateTukens(ctx context.Context, db *pgxpool.Conn, tukens int64) (err error) {
 	_, err = db.Exec(
 		ctx,
 		"UPDATE wallet SET tukens = $3 "+
@@ -46,7 +47,7 @@ func (w *Wallet) UpdateTukens(ctx context.Context, db *pgx.Conn, tukens int64) (
 	return
 }
 
-func (w *Wallet) UpdateTukensMine(ctx context.Context, db *pgx.Conn, tukens int64, timeLastMined time.Time) (err error) {
+func (w *Wallet) UpdateTukensMine(ctx context.Context, db *pgxpool.Conn, tukens int64, timeLastMined time.Time) (err error) {
 	_, err = db.Exec(
 		ctx,
 		"UPDATE wallet SET tukens = $3, time_last_mined = $4 "+

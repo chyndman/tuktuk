@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"math/rand"
 	"time"
 )
 
-func TukenMine(ctx context.Context, db *pgx.Conn, gid int64, uid int64) (msgPub string, msgPriv string, err error) {
+func TukenMine(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msgPub string, msgPriv string, err error) {
 	const cooldownHours = 4
 	minedTukens := 1200 + int64(rand.NormFloat64()*80.0)
 	now := time.Now()

@@ -7,6 +7,7 @@ import (
 	"github.com/chyndman/tuktuk/models"
 	"github.com/chyndman/tuktuk/playingcard"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"math/rand"
 )
 
@@ -18,7 +19,7 @@ const (
 	TukkaratOutcomeTie
 )
 
-func TukkaratSolo(ctx context.Context, db *pgx.Conn, gid int64, uid int64, tukens int64, outcome TukkaratOutcome) (msgPub string, msgPriv string, err error) {
+func TukkaratSolo(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, tukens int64, outcome TukkaratOutcome) (msgPub string, msgPriv string, err error) {
 	wallet, err := models.WalletByGuildUser(
 		context.Background(),
 		db,

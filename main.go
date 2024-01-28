@@ -5,14 +5,14 @@ import (
 	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/handlers"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"math/rand"
 	"os"
 	"strconv"
 )
 
-var dbConn *pgx.Conn
+var dbPool *pgxpool.Pool
 
 func getGuildUserKey(itx *tempest.CommandInteraction) (gid int64, uid int64) {
 	return int64(itx.GuildID), int64(itx.Member.User.ID)
@@ -97,9 +97,14 @@ var slashTukenMine = tempest.Command{
 	Name:        "mine",
 	Description: "Mine for Tukens",
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		gid, uid := getGuildUserKey(itx)
-		msgPub, msgPriv, err := handlers.TukenMine(context.Background(), dbConn, gid, uid)
-		handlerFinish(itx, msgPub, msgPriv, err)
+		ctx := context.Background()
+		dbConn, err := dbPool.Acquire(ctx)
+		if err == nil {
+			defer dbConn.Release()
+			gid, uid := getGuildUserKey(itx)
+			msgPub, msgPriv, err := handlers.TukenMine(context.Background(), dbConn, gid, uid)
+			handlerFinish(itx, msgPub, msgPriv, err)
+		}
 	},
 }
 
@@ -154,9 +159,14 @@ var slashTukkaratSolo = tempest.Command{
 		case "hand_tie":
 			outcome = handlers.TukkaratOutcomeTie
 		}
-		gid, uid := getGuildUserKey(itx)
-		msgPub, msgPriv, err := handlers.TukkaratSolo(context.Background(), dbConn, gid, uid, betTukens, outcome)
-		handlerFinish(itx, msgPub, msgPriv, err)
+		ctx := context.Background()
+		dbConn, err := dbPool.Acquire(ctx)
+		if err == nil {
+			defer dbConn.Release()
+			gid, uid := getGuildUserKey(itx)
+			msgPub, msgPriv, err := handlers.TukkaratSolo(ctx, dbConn, gid, uid, betTukens, outcome)
+			handlerFinish(itx, msgPub, msgPriv, err)
+		}
 	},
 }
 
@@ -250,9 +260,14 @@ var slashBanditHire = tempest.Command{
 			archers = int(archersOpt.(float64))
 		}
 
-		gid, uid := getGuildUserKey(itx)
-		msgPriv, err := handlers.BanditHire(context.Background(), dbConn, gid, uid, spearmen, archers)
-		handlerFinish(itx, msgPriv, "", err)
+		ctx := context.Background()
+		dbConn, err := dbPool.Acquire(ctx)
+		if err == nil {
+			defer dbConn.Release()
+			gid, uid := getGuildUserKey(itx)
+			msgPriv, err := handlers.BanditHire(ctx, dbConn, gid, uid, spearmen, archers)
+			handlerFinish(itx, msgPriv, "", err)
+		}
 	},
 }
 
@@ -338,16 +353,16 @@ func main() {
 
 	addr := "0.0.0.0:" + strconv.Itoa(portNum)
 
-	dbConf, err := pgx.ParseConfig("")
+	dbConf, err := pgxpool.ParseConfig("")
 	if err != nil {
 		panic(err)
 	}
 
-	dbConn, err = pgx.ConnectConfig(context.Background(), dbConf)
+	dbPool, err = pgxpool.NewWithConfig(context.Background(), dbConf)
 	if err != nil {
 		panic(err)
 	}
-	defer dbConn.Close(context.Background())
+	defer dbPool.Close()
 
 	client := tempest.NewClient(tempest.ClientOptions{
 		PublicKey: publicKey,
