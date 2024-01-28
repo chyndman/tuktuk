@@ -3,6 +3,7 @@ package playingcard
 import "fmt"
 
 type Suit int
+
 const (
 	SuitSpade Suit = iota
 	SuitHeart
@@ -11,6 +12,7 @@ const (
 )
 
 type Rank int
+
 const (
 	RankAce Rank = iota + 1
 	Rank2

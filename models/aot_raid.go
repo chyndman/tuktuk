@@ -7,11 +7,11 @@ import (
 )
 
 type AOTRaid struct {
-	GuildID   int64
-	AttackerUserID    int64
+	GuildID        int64
+	AttackerUserID int64
 	DefenderUserID int64
-	Spearmen  int
-	Archers   int
+	Spearmen       int
+	Archers        int
 }
 
 func AOTRaidByGuildAttacker(ctx context.Context, db *pgxpool.Conn, gid int64, uidAtk int64) (r AOTRaid, err error) {
@@ -31,7 +31,7 @@ func (r *AOTRaid) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 		ctx,
 		"INSERT INTO aot_raid(guild_id, attacker_user_id, defender_user_id, spearmen, archers) "+
 			"VALUES($1, $2, $3, $4, $5)",
-			r.GuildID, r.AttackerUserID, r.DefenderUserID, r.Spearmen, r.Archers)
+		r.GuildID, r.AttackerUserID, r.DefenderUserID, r.Spearmen, r.Archers)
 	return
 }
 
@@ -40,7 +40,7 @@ func (r *AOTRaid) Update(ctx context.Context, db *pgxpool.Conn, uidDef int64, sp
 		ctx,
 		"UPDATE aot_raid SET defender_user_id = $3, spearmen = $4, archers = $5 "+
 			"WHERE guild_id = $1 AND attacker_user_id = $2",
-			r.GuildID, r.AttackerUserID, uidDef, spearmen, archers)
+		r.GuildID, r.AttackerUserID, uidDef, spearmen, archers)
 	if err == nil {
 		r.DefenderUserID = uidDef
 		r.Spearmen = spearmen

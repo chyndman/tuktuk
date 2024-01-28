@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/handlers"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
 )
@@ -35,9 +33,9 @@ func finishHandler(re handlers.Reply, err error, itx *tempest.CommandInteraction
 		reply = re.PrivateMsg
 	}
 
-	itx.SendLinearReply(reply, replyEphemeral)
-	if 0 < len(followUp) {
-		itx.SendFollowUp(tempest.ResponseMessageData{Content: followUp}, true)
+	err = itx.SendLinearReply(reply, replyEphemeral)
+	if err == nil && 0 < len(followUp) {
+		_, _ = itx.SendFollowUp(tempest.ResponseMessageData{Content: followUp}, true)
 	}
 }
 
@@ -83,28 +81,19 @@ var slashRoll = tempest.Command{
 		},
 	},
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		h := handlers.Roll{
+			Sides: 6,
+			Count: 1,
+		}
 		sidesOpt, sidesGiven := itx.GetOptionValue("sides")
 		countOpt, countGiven := itx.GetOptionValue("count")
-
-		sides := 6
 		if sidesGiven {
-			sides = int(sidesOpt.(float64))
+			h.Sides = int(sidesOpt.(float64))
 		}
-		count := 1
 		if countGiven {
-			count = int(countOpt.(float64))
+			h.Count = int(countOpt.(float64))
 		}
-
-		rolls := ""
-		sum := 0
-		for i := 0; i < count; i++ {
-			n := rand.Intn(sides) + 1
-			sum += n
-			rolls += " [" + strconv.Itoa(n) + "]"
-		}
-		itx.SendLinearReply(
-			fmt.Sprintf("`%d%s%d ->%s (sum %d)`", count, "d", sides, rolls, sum),
-			false)
+		doHandler(h, itx)
 	},
 }
 
@@ -371,17 +360,17 @@ func main() {
 		Rest:      tempest.NewRest(botToken),
 	})
 
-	client.RegisterCommand(slashRoll)
-	client.RegisterCommand(slashTuken)
-	client.RegisterSubCommand(slashTukenMine, slashTuken.Name)
-	client.RegisterCommand(slashTukkarat)
-	client.RegisterSubCommand(slashTukkaratSolo, slashTukkarat.Name)
-	client.RegisterCommand(slashBandit)
-	client.RegisterSubCommand(slashBanditSim, slashBandit.Name)
-	client.RegisterSubCommand(slashBanditHire, slashBandit.Name)
-	client.RegisterSubCommand(slashBanditRaid, slashBandit.Name)
-	client.RegisterCommand(slashAOT)
-	client.RegisterSubCommand(slashAOTJoin, slashAOT.Name)
+	_ = client.RegisterCommand(slashRoll)
+	_ = client.RegisterCommand(slashTuken)
+	_ = client.RegisterSubCommand(slashTukenMine, slashTuken.Name)
+	_ = client.RegisterCommand(slashTukkarat)
+	_ = client.RegisterSubCommand(slashTukkaratSolo, slashTukkarat.Name)
+	_ = client.RegisterCommand(slashBandit)
+	_ = client.RegisterSubCommand(slashBanditSim, slashBandit.Name)
+	_ = client.RegisterSubCommand(slashBanditHire, slashBandit.Name)
+	_ = client.RegisterSubCommand(slashBanditRaid, slashBandit.Name)
+	_ = client.RegisterCommand(slashAOT)
+	_ = client.RegisterSubCommand(slashAOTJoin, slashAOT.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
