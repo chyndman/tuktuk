@@ -102,7 +102,7 @@ var slashTukenMine = tempest.Command{
 		if err == nil {
 			defer dbConn.Release()
 			gid, uid := getGuildUserKey(itx)
-			msgPub, msgPriv, err := handlers.TukenMine(context.Background(), dbConn, gid, uid)
+			msgPub, msgPriv, err := handlers.TukenMine(ctx, dbConn, gid, uid)
 			handlerFinish(itx, msgPub, msgPriv, err)
 		}
 	},
@@ -318,6 +318,26 @@ var slashBanditRaid = tempest.Command{
 	},
 }
 
+var slashAOT = tempest.Command{
+	Name:        "aot",
+	Description: "Age of Tuk",
+}
+
+var slashAOTJoin = tempest.Command{
+	Name:        "join",
+	Description: "Join the current game of AoT",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		ctx := context.Background()
+		dbConn, err := dbPool.Acquire(ctx)
+		if err == nil {
+			defer dbConn.Release()
+			gid, uid := getGuildUserKey(itx)
+			msgPub, msgPriv, err := handlers.AOTJoin(ctx, dbConn, gid, uid)
+			handlerFinish(itx, msgPub, msgPriv, err)
+		}
+	},
+}
+
 func main() {
 	publicKey := os.Getenv("TUKTUK_PUBLIC_KEY")
 	if 0 == len(publicKey) {
@@ -378,6 +398,8 @@ func main() {
 	client.RegisterSubCommand(slashBanditSim, slashBandit.Name)
 	client.RegisterSubCommand(slashBanditHire, slashBandit.Name)
 	client.RegisterSubCommand(slashBanditRaid, slashBandit.Name)
+	client.RegisterCommand(slashAOT)
+	client.RegisterSubCommand(slashAOTJoin, slashAOT.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")

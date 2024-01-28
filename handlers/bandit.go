@@ -42,31 +42,47 @@ func BanditHire(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, spe
 		archers, tukensDisplay(aot.BanditArcherPrice), tukensDisplay(archersPrice),
 		tukensDisplay(totalPrice))
 
-	wallet, err := models.WalletByGuildUser(ctx, db, gid, uid)
+	var player models.AOTPlayer
+	player, err = models.AOTPlayerByGuildUser(ctx, db, gid, uid)
 	if err == nil {
-		if totalPrice == 0 {
-			msgPriv = fmt.Sprintf(
-				"You have %s.%s",
-				tukensDisplay(wallet.Tukens),
-				blk)
-		} else if wallet.Tukens < totalPrice {
-			msgPriv = fmt.Sprintf(
-				"Unable to hire. You have %s.%s",
-				tukensDisplay(wallet.Tukens),
-				blk)
-		} else {
-			err = wallet.UpdateTukens(ctx, db, wallet.Tukens-totalPrice)
-			// TODO game update
-			if err == nil {
+		var wallet models.Wallet
+		wallet, err = models.WalletByGuildUser(ctx, db, gid, uid)
+		if err == nil {
+			if totalPrice == 0 {
 				msgPriv = fmt.Sprintf(
-					"Bandits hired. You now have %s.%s",
+					"You have %s, %d spearmen and %d archers.%s",
 					tukensDisplay(wallet.Tukens),
+					player.Spearmen,
+					player.Archers,
 					blk)
+			} else if wallet.Tukens < totalPrice {
+				msgPriv = fmt.Sprintf(
+					"Unable to hire. You have %s, %d spearmen and %d archers.%s",
+					tukensDisplay(wallet.Tukens),
+					player.Spearmen,
+					player.Archers,
+					blk)
+			} else {
+				err = wallet.UpdateTukens(ctx, db, wallet.Tukens-totalPrice)
+				if err == nil {
+					err = player.UpdateBandits(ctx, db, player.Spearmen+spearmen, player.Archers+archers)
+					if err == nil {
+						msgPriv = fmt.Sprintf(
+							"Bandits hired. You now have %s, %d spearmen and %d archers.%s",
+							tukensDisplay(wallet.Tukens),
+							player.Spearmen,
+							player.Archers,
+							blk)
+					}
+				}
 			}
+		} else if errors.Is(err, pgx.ErrNoRows) {
+			err = nil
+			msgPriv = NoWalletErrorMsg
 		}
 	} else if errors.Is(err, pgx.ErrNoRows) {
 		err = nil
-		msgPriv = NoWalletErrorMsg
+		msgPriv = NoPlayerErrorMsg
 	}
 
 	return

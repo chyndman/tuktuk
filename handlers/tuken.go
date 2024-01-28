@@ -11,9 +11,12 @@ import (
 	"time"
 )
 
+const TukenMineMean int64 = 1200
+const TukenMineStdDev int = 80
+const TukenMineCooldownHours = 4
+
 func TukenMine(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msgPub string, msgPriv string, err error) {
-	const cooldownHours = 4
-	minedTukens := 1200 + int64(rand.NormFloat64()*80.0)
+	minedTukens := TukenMineMean + int64(rand.NormFloat64()*float64(TukenMineStdDev))
 	now := time.Now()
 	didMine := false
 
@@ -21,7 +24,7 @@ func TukenMine(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msg
 	if err == nil {
 		var timeEarliestMine time.Time
 		if !wallet.TimeLastMined.IsZero() {
-			timeEarliestMine = wallet.TimeLastMined.Add(time.Hour * cooldownHours)
+			timeEarliestMine = wallet.TimeLastMined.Add(time.Hour * TukenMineCooldownHours)
 		}
 		if now.Before(timeEarliestMine) {
 			wait := timeEarliestMine.Sub(now).Round(time.Second)
