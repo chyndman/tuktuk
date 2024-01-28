@@ -10,11 +10,13 @@ import (
 	"time"
 )
 
-func AOTJoin(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msgPub string, msgPriv string, err error) {
+type AOTJoin struct{}
+
+func (h AOTJoin) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
 	var player models.AOTPlayer
 	player, err = models.AOTPlayerByGuildUser(ctx, db, gid, uid)
 	if err == nil {
-		msgPriv = "⚠️ You're already in the game."
+		re.PrivateMsg = "⚠️ You're already in the game."
 	} else if errors.Is(err, pgx.ErrNoRows) {
 		var wallet models.Wallet
 		wallet, err = models.WalletByGuildUser(ctx, db, gid, uid)
@@ -36,7 +38,7 @@ func AOTJoin(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msgPu
 			player.Archers = 0
 			err = player.Insert(ctx, db)
 			if err == nil {
-				msgPub = fmt.Sprintf("%s is now playing Age of Tuk!", mention(uid))
+				re.PublicMsg = fmt.Sprintf("%s is now playing Age of Tuk!", mention(uid))
 			}
 		}
 	}

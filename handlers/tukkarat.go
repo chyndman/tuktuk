@@ -19,27 +19,28 @@ const (
 	TukkaratOutcomeTie
 )
 
-func TukkaratSolo(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, tukens int64, outcome TukkaratOutcome) (msgPub string, msgPriv string, err error) {
-	wallet, err := models.WalletByGuildUser(
-		context.Background(),
-		db,
-		gid,
-		uid)
+type TukkaratSolo struct {
+	Tukens  int64
+	Outcome TukkaratOutcome
+}
+
+func (h TukkaratSolo) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
+	wallet, err := models.WalletByGuildUser(ctx, db, gid, uid)
 	if err == nil {
-		if wallet.Tukens < tukens {
-			msgPriv = fmt.Sprintf(
+		if wallet.Tukens < h.Tukens {
+			re.PrivateMsg = fmt.Sprintf(
 				"⚠️ Unable to bet %s. You have %s.",
-				tukensDisplay(tukens),
+				tukensDisplay(h.Tukens),
 				tukensDisplay(wallet.Tukens))
 		} else {
 			player, banker := playBaccarat()
-			diffTukens := 0 - tukens
-			if player.Score > banker.Score && TukkaratOutcomePassenger == outcome {
-				diffTukens = tukens
-			} else if banker.Score > player.Score && TukkaratOutcomeDriver == outcome {
-				diffTukens = tukens - (tukens / 20)
-			} else if banker.Score == player.Score && TukkaratOutcomeTie == outcome {
-				diffTukens = 8 * tukens
+			diffTukens := 0 - h.Tukens
+			if player.Score > banker.Score && TukkaratOutcomePassenger == h.Outcome {
+				diffTukens = h.Tukens
+			} else if banker.Score > player.Score && TukkaratOutcomeDriver == h.Outcome {
+				diffTukens = h.Tukens - (h.Tukens / 20)
+			} else if banker.Score == player.Score && TukkaratOutcomeTie == h.Outcome {
+				diffTukens = 8 * h.Tukens
 			}
 
 			err = wallet.UpdateTukens(ctx, db, wallet.Tukens+diffTukens)
@@ -51,20 +52,20 @@ func TukkaratSolo(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, t
 					absDiffTukens = 0 - diffTukens
 				}
 				blk := formatTukkaratCodeBlock(player, banker)
-				msgPub = fmt.Sprintf(
+				re.PublicMsg = fmt.Sprintf(
 					"%s %s %s in a game of Tukkarat!\n%s",
 					mention(uid),
 					outcomeStr,
 					tukensDisplay(absDiffTukens),
 					blk)
-				msgPriv = fmt.Sprintf(
+				re.PrivateMsg = fmt.Sprintf(
 					"You now have %s.",
 					tukensDisplay(wallet.Tukens))
 			}
 		}
 	} else if errors.Is(err, pgx.ErrNoRows) {
 		err = nil
-		msgPriv = NoWalletErrorMsg
+		re.PrivateMsg = NoWalletErrorMsg
 	}
 
 	return

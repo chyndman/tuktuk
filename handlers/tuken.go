@@ -15,7 +15,9 @@ const TukenMineMean int64 = 1200
 const TukenMineStdDev int = 80
 const TukenMineCooldownHours = 4
 
-func TukenMine(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msgPub string, msgPriv string, err error) {
+type TukenMine struct{}
+
+func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
 	minedTukens := TukenMineMean + int64(rand.NormFloat64()*float64(TukenMineStdDev))
 	now := time.Now()
 	didMine := false
@@ -28,7 +30,7 @@ func TukenMine(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msg
 		}
 		if now.Before(timeEarliestMine) {
 			wait := timeEarliestMine.Sub(now).Round(time.Second)
-			msgPriv = fmt.Sprintf(
+			re.PrivateMsg = fmt.Sprintf(
 				"⚠️ Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
 		} else {
 			err = wallet.UpdateTukensMine(
@@ -52,9 +54,9 @@ func TukenMine(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (msg
 	}
 
 	if didMine {
-		msgPub = fmt.Sprintf(
+		re.PublicMsg = fmt.Sprintf(
 			"%s mined %s!", mention(uid), tukensDisplay(minedTukens))
-		msgPriv = fmt.Sprintf(
+		re.PrivateMsg = fmt.Sprintf(
 			"You now have %s.", tukensDisplay(wallet.Tukens))
 	}
 

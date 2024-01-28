@@ -18,27 +18,47 @@ func getGuildUserKey(itx *tempest.CommandInteraction) (gid int64, uid int64) {
 	return int64(itx.GuildID), int64(itx.Member.User.ID)
 }
 
-func handlerFinish(itx *tempest.CommandInteraction, msgPub string, msgPriv string, handlerError error) {
-	if handlerError != nil {
-		log.Print(handlerError)
-	}
-
+func finishHandler(re handlers.Reply, err error, itx *tempest.CommandInteraction) {
 	reply := handlers.DefaultErrorMsg
 	replyEphemeral := true
 	var followUp string
 
-	if 0 < len(msgPub) {
-		reply = msgPub
+	if err != nil {
+		log.Print(err)
+	}
+
+	if 0 < len(re.PublicMsg) {
+		reply = re.PublicMsg
 		replyEphemeral = false
-		followUp = msgPriv
-	} else if 0 < len(msgPriv) {
-		reply = msgPriv
+		followUp = re.PrivateMsg
+	} else if 0 < len(re.PrivateMsg) {
+		reply = re.PrivateMsg
 	}
 
 	itx.SendLinearReply(reply, replyEphemeral)
 	if 0 < len(followUp) {
 		itx.SendFollowUp(tempest.ResponseMessageData{Content: followUp}, true)
 	}
+}
+
+func doDBHandler(h handlers.DBHandler, itx *tempest.CommandInteraction) {
+	ctx := context.Background()
+	db, err := dbPool.Acquire(ctx)
+	var re handlers.Reply
+
+	if err == nil {
+		gid, uid := getGuildUserKey(itx)
+		re, err = h.Handle(ctx, db, gid, uid)
+		db.Release()
+	}
+
+	finishHandler(re, err, itx)
+}
+
+func doHandler(h handlers.Handler, itx *tempest.CommandInteraction) {
+	gid, uid := getGuildUserKey(itx)
+	re, err := h.Handle(gid, uid)
+	finishHandler(re, err, itx)
 }
 
 var slashRoll = tempest.Command{
@@ -97,14 +117,7 @@ var slashTukenMine = tempest.Command{
 	Name:        "mine",
 	Description: "Mine for Tukens",
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		ctx := context.Background()
-		dbConn, err := dbPool.Acquire(ctx)
-		if err == nil {
-			defer dbConn.Release()
-			gid, uid := getGuildUserKey(itx)
-			msgPub, msgPriv, err := handlers.TukenMine(ctx, dbConn, gid, uid)
-			handlerFinish(itx, msgPub, msgPriv, err)
-		}
+		doDBHandler(handlers.TukenMine{}, itx)
 	},
 }
 
@@ -146,27 +159,20 @@ var slashTukkaratSolo = tempest.Command{
 		},
 	},
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		var h handlers.TukkaratSolo
 		tukensOpt, _ := itx.GetOptionValue("tukens")
 		handOpt, _ := itx.GetOptionValue("hand")
-		betTukens := int64(tukensOpt.(float64))
+		h.Tukens = int64(tukensOpt.(float64))
 		betHand := handOpt.(string)
-		var outcome handlers.TukkaratOutcome
 		switch betHand {
 		case "hand_passenger":
-			outcome = handlers.TukkaratOutcomePassenger
+			h.Outcome = handlers.TukkaratOutcomePassenger
 		case "hand_driver":
-			outcome = handlers.TukkaratOutcomeDriver
+			h.Outcome = handlers.TukkaratOutcomeDriver
 		case "hand_tie":
-			outcome = handlers.TukkaratOutcomeTie
+			h.Outcome = handlers.TukkaratOutcomeTie
 		}
-		ctx := context.Background()
-		dbConn, err := dbPool.Acquire(ctx)
-		if err == nil {
-			defer dbConn.Release()
-			gid, uid := getGuildUserKey(itx)
-			msgPub, msgPriv, err := handlers.TukkaratSolo(ctx, dbConn, gid, uid, betTukens, outcome)
-			handlerFinish(itx, msgPub, msgPriv, err)
-		}
+		doDBHandler(h, itx)
 	},
 }
 
@@ -217,14 +223,12 @@ var slashBanditSim = tempest.Command{
 		atkArchersOpt, _ := itx.GetOptionValue("atk_archers")
 		defSpearmenOpt, _ := itx.GetOptionValue("def_spearmen")
 		defArchersOpt, _ := itx.GetOptionValue("def_archers")
-
-		atkSpearmen := int(atkSpearmenOpt.(float64))
-		atkArchers := int(atkArchersOpt.(float64))
-		defSpearmen := int(defSpearmenOpt.(float64))
-		defArchers := int(defArchersOpt.(float64))
-
-		msgPriv := handlers.BanditSim(atkSpearmen, atkArchers, defSpearmen, defArchers)
-		handlerFinish(itx, "", msgPriv, nil)
+		doHandler(handlers.BanditSim{
+			AtkSpearmen: int(atkSpearmenOpt.(float64)),
+			AtkArchers:  int(atkArchersOpt.(float64)),
+			DefSpearmen: int(defSpearmenOpt.(float64)),
+			DefArchers:  int(defArchersOpt.(float64)),
+		}, itx)
 	},
 }
 
@@ -248,26 +252,16 @@ var slashBanditHire = tempest.Command{
 		},
 	},
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		var h handlers.BanditHire
 		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
 		archersOpt, archersGiven := itx.GetOptionValue("archers")
-
-		spearmen := 0
 		if spearmenGiven {
-			spearmen = int(spearmenOpt.(float64))
+			h.Spearmen = int(spearmenOpt.(float64))
 		}
-		archers := 0
 		if archersGiven {
-			archers = int(archersOpt.(float64))
+			h.Archers = int(archersOpt.(float64))
 		}
-
-		ctx := context.Background()
-		dbConn, err := dbPool.Acquire(ctx)
-		if err == nil {
-			defer dbConn.Release()
-			gid, uid := getGuildUserKey(itx)
-			msgPriv, err := handlers.BanditHire(ctx, dbConn, gid, uid, spearmen, archers)
-			handlerFinish(itx, "", msgPriv, err)
-		}
+		doDBHandler(h, itx)
 	},
 }
 
@@ -276,7 +270,7 @@ var slashBanditRaid = tempest.Command{
 	Description: "Send bandit units to attack another member",
 	Options: []tempest.CommandOption{
 		{
-			Name:        "member",
+			Name:        "target",
 			Description: "target of your raid",
 			Type:        tempest.USER_OPTION_TYPE,
 			Required:    true,
@@ -297,29 +291,19 @@ var slashBanditRaid = tempest.Command{
 		},
 	},
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		memberOpt, _ := itx.GetOptionValue("member")
+		var h handlers.BanditRaid
+		targetOpt, _ := itx.GetOptionValue("target")
 		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
 		archersOpt, archersGiven := itx.GetOptionValue("archers")
-
-		memberSnf, _ := tempest.StringToSnowflake(memberOpt.(string))
-		uidMember := int64(memberSnf)
-		spearmen := 0
+		targetUserSnowflake, _ := tempest.StringToSnowflake(targetOpt.(string))
+		h.TargetUserID = int64(targetUserSnowflake)
 		if spearmenGiven {
-			spearmen = int(spearmenOpt.(float64))
+			h.Spearmen = int(spearmenOpt.(float64))
 		}
-		archers := 0
 		if archersGiven {
-			archers = int(archersOpt.(float64))
+			h.Archers = int(archersOpt.(float64))
 		}
-
-		ctx := context.Background()
-		dbConn, err := dbPool.Acquire(ctx)
-		if err == nil {
-			defer dbConn.Release()
-			gid, uid := getGuildUserKey(itx)
-			msgPriv, err := handlers.BanditRaid(ctx, dbConn, gid, uid, uidMember, spearmen, archers)
-			handlerFinish(itx, "", msgPriv, err)
-		}
+		doDBHandler(h, itx)
 	},
 }
 
@@ -332,14 +316,7 @@ var slashAOTJoin = tempest.Command{
 	Name:        "join",
 	Description: "Join the current game of AoT",
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		ctx := context.Background()
-		dbConn, err := dbPool.Acquire(ctx)
-		if err == nil {
-			defer dbConn.Release()
-			gid, uid := getGuildUserKey(itx)
-			msgPub, msgPriv, err := handlers.AOTJoin(ctx, dbConn, gid, uid)
-			handlerFinish(itx, msgPub, msgPriv, err)
-		}
+		doDBHandler(handlers.AOTJoin{}, itx)
 	},
 }
 
