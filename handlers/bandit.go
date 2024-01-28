@@ -87,3 +87,43 @@ func BanditHire(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64, spe
 
 	return
 }
+
+func BanditRaid(ctx context.Context, db *pgxpool.Conn, gid int64, uidAtk int64, uidDef int64, spearmen int, archers int) (msgPriv string, err error) {
+	if uidAtk == uidDef {
+		msgPriv = "⚠️ You cannot raid yourself."
+	} else if _, err = models.AOTPlayerByGuildUser(ctx, db, gid, uidDef); err == nil {
+		var playerAtk models.AOTPlayer
+		playerAtk, err = models.AOTPlayerByGuildUser(ctx, db, gid, uidAtk)
+		if err == nil {
+			var raid models.AOTRaid
+			if spearmen > playerAtk.Spearmen || archers > playerAtk.Archers {
+				msgPriv = fmt.Sprintf(
+					"⚠️ You don't have enough bandits for this raid. You have %d spearmen and %d archers.",
+					playerAtk.Spearmen, playerAtk.Archers)
+			} else if raid, err = models.AOTRaidByGuildAttacker(ctx, db, gid, uidAtk); err == nil {
+				err = raid.Update(ctx, db, uidDef, spearmen, archers)
+			} else if errors.Is(err, pgx.ErrNoRows) {
+				raid.GuildID = gid
+				raid.AttackerUserID = uidAtk
+				raid.DefenderUserID = uidDef
+				raid.Spearmen = spearmen
+				raid.Archers = archers
+				err = raid.Insert(ctx, db)
+			}
+
+			if err == nil && 0 == len(msgPriv) {
+				msgPriv = fmt.Sprintf(
+					"You are now primed to raid %s with %d spearmen and %d archers.",
+					mention(uidDef), spearmen, archers)
+			}
+		} else if errors.Is(err, pgx.ErrNoRows) {
+			err = nil
+			msgPriv = NoPlayerErrorMsg
+		}
+	} else if errors.Is(err, pgx.ErrNoRows) {
+		err = nil
+		msgPriv = fmt.Sprintf("⚠️ %s is not playing Age of Tuk.", mention(uidDef))
+	}
+
+	return
+}

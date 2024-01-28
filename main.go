@@ -266,7 +266,7 @@ var slashBanditHire = tempest.Command{
 			defer dbConn.Release()
 			gid, uid := getGuildUserKey(itx)
 			msgPriv, err := handlers.BanditHire(ctx, dbConn, gid, uid, spearmen, archers)
-			handlerFinish(itx, msgPriv, "", err)
+			handlerFinish(itx, "", msgPriv, err)
 		}
 	},
 }
@@ -297,24 +297,29 @@ var slashBanditRaid = tempest.Command{
 		},
 	},
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-		/*
-			memberOpt, _ := itx.GetOptionValue("member")
-			spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
-			archersOpt, archersGiven := itx.GetOptionValue("archers")
+		memberOpt, _ := itx.GetOptionValue("member")
+		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
+		archersOpt, archersGiven := itx.GetOptionValue("archers")
 
-			targetSnf, _ := tempest.StringToSnowflake(memberOpt.(string))
-			spearmen := 0
-			if spearmenGiven {
-				spearmen = int(spearmenOpt.(float64))
-			}
-			archers := 0
-			if archersGiven {
-				archers = int(archersOpt.(float64))
-			}
-		*/
-		msg := "TODO"
-		ephem := true
-		itx.SendLinearReply(msg, ephem)
+		memberSnf, _ := tempest.StringToSnowflake(memberOpt.(string))
+		uidMember := int64(memberSnf)
+		spearmen := 0
+		if spearmenGiven {
+			spearmen = int(spearmenOpt.(float64))
+		}
+		archers := 0
+		if archersGiven {
+			archers = int(archersOpt.(float64))
+		}
+
+		ctx := context.Background()
+		dbConn, err := dbPool.Acquire(ctx)
+		if err == nil {
+			defer dbConn.Release()
+			gid, uid := getGuildUserKey(itx)
+			msgPriv, err := handlers.BanditRaid(ctx, dbConn, gid, uid, uidMember, spearmen, archers)
+			handlerFinish(itx, "", msgPriv, err)
+		}
 	},
 }
 
