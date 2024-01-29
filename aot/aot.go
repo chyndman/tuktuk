@@ -14,6 +14,7 @@ const BanditSpearmanDmgToSpearman uint8 = 1
 const BanditSpearmanDmgToArcher uint8 = 1
 const BanditArcherDmgToSpearman uint8 = 2
 const BanditArcherDmgToArcher uint8 = 1
+const CycleArmTimeoutMinutes = 10
 
 type Army struct {
 	Spearmen []uint8

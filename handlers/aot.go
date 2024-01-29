@@ -50,6 +50,48 @@ func (h AOTJoin) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid in
 type AOTCycle struct{}
 
 func (h AOTCycle) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
+	if _, err = models.AOTPlayerByGuildUser(ctx, db, gid, uid); err == nil {
+		armedPublic := false
+		now := time.Now()
+		var ctrl models.AOTCycleCtrl
+		if ctrl, err = models.AOTCycleCtrlByGuild(ctx, db, gid); err == nil {
+			var timeArmAgain time.Time
+			if !ctrl.TimeArmed.IsZero() {
+				timeArmAgain = ctrl.TimeArmed.Add(time.Minute * aot.CycleArmTimeoutMinutes)
+			}
+			if now.Before(timeArmAgain) {
+				if ctrl.ArmedUserID == uid {
+					re.PrivateMsg = "⚠️ You've already armed the next cycle."
+				} else if err = models.DeleteAOTCycleCtrlByGuild(ctx, db, gid); err == nil {
+					re, err = h.doCycle(ctx, db, gid)
+					if err == nil {
+						err = models.DeleteAOTCycleCtrlByGuild(ctx, db, gid)
+					}
+				}
+			} else if err = ctrl.Update(ctx, db, now, uid); err == nil {
+				armedPublic = true
+			}
+		} else if errors.Is(err, pgx.ErrNoRows) {
+			ctrl.GuildID = gid
+			ctrl.TimeArmed = now
+			ctrl.ArmedUserID = uid
+			if err = ctrl.Insert(ctx, db); err == nil {
+				armedPublic = true
+			}
+		}
+		if armedPublic {
+			re.PublicMsg = fmt.Sprintf(
+				"%s has armed the next cycle. Any other player has %d minutes to use `/aot cycle` to start the next cycle.",
+				mention(uid), aot.CycleArmTimeoutMinutes)
+		}
+	} else if errors.Is(err, pgx.ErrNoRows) {
+		err = nil
+		re.PrivateMsg = NoPlayerErrorMsg
+	}
+	return
+}
+
+func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re Reply, err error) {
 	var reportRaids string
 	var reportSummary string
 	var wallets []models.Wallet
@@ -215,7 +257,7 @@ func (h AOTCycle) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid i
 		}
 		report := "# Cycle Report\n## Summary\n" + reportSummary + "## Raid Details\n" + reportRaids
 
-		//err = models.DeleteAOTRaidsByGuild(ctx, db, gid)
+		err = models.DeleteAOTRaidsByGuild(ctx, db, gid)
 		if err == nil {
 			now := time.Now()
 			for i := range players {
