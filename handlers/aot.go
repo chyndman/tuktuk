@@ -107,12 +107,6 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 		return
 	} else {
 		var raidsConfirmed []models.AOTRaid
-
-		ankhsAdds := make([]int, len(players))
-		ankhsSubs := make([]int, len(players))
-		spearmenDiffs := make([]int, len(players))
-		archersDiffs := make([]int, len(players))
-
 		for _, player := range players {
 			idxConfirm := -1
 			for i := 0; i < len(raids); i++ {
@@ -130,19 +124,26 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 				raidsConfirmed = append(raidsConfirmed, raids[idxConfirm])
 			}
 		}
+		raids = raidsConfirmed
 
-		for i := range raidsConfirmed {
+		ankhsAdds := make([]int, len(players))
+		ankhsSubs := make([]int, len(players))
+		spearmenDiffs := make([]int, len(players))
+		archersDiffs := make([]int, len(players))
+
+		for i := range raids {
 			for j := 0; j < len(players); j++ {
 				if players[j].UserID == raids[i].AttackerUserID {
 					players[j].Spearmen -= raids[i].Spearmen
 					players[j].Archers -= raids[i].Archers
 					spearmenDiffs[j] += raids[i].Spearmen
 					archersDiffs[j] += raids[i].Archers
+					break
 				}
 			}
 		}
 
-		for _, raid := range raidsConfirmed {
+		for _, raid := range raids {
 			atkIdx, defIdx := -1, -1
 			for i := range players {
 				switch players[i].UserID {
@@ -161,7 +162,7 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 			atkSpearmenLost, atkArchersLost, defSpearmenLost, defArchersLost := aot.Battle(
 				raid.Spearmen, raid.Archers, players[defIdx].Spearmen, players[defIdx].Archers)
 			spearmenDiffs[atkIdx] -= atkSpearmenLost
-			archersDiffs[atkIdx] -= defSpearmenLost
+			archersDiffs[atkIdx] -= atkArchersLost
 			spearmenDiffs[defIdx] -= defSpearmenLost
 			archersDiffs[defIdx] -= defArchersLost
 			outcomeStr := "repelled"
@@ -227,13 +228,14 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 			}
 		}
 
-		for i := range raidsConfirmed {
+		for i := range raids {
 			for j := 0; j < len(players); j++ {
 				if players[j].UserID == raids[i].AttackerUserID {
 					players[j].Spearmen += raids[i].Spearmen
 					players[j].Archers += raids[i].Archers
 					spearmenDiffs[j] -= raids[i].Spearmen
 					archersDiffs[j] -= raids[i].Archers
+					break
 				}
 			}
 		}
@@ -295,7 +297,7 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 				}
 			}
 
-			re.PrivateMsg += report
+			re.PublicMsg += report
 		}
 	}
 	return
