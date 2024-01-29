@@ -35,7 +35,7 @@ func (h AOTJoin) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid in
 			player.GuildID = gid
 			player.UserID = uid
 			player.Amethysts = 0
-			player.Ankhs = 0
+			player.Ankhs = 1
 			player.Spearmen = 0
 			player.Archers = 0
 			err = player.Insert(ctx, db)
