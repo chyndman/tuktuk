@@ -74,3 +74,16 @@ func (p *AOTPlayer) UpdateBandits(ctx context.Context, db *pgxpool.Conn, spearme
 	}
 	return
 }
+
+func (p *AOTPlayer) UpdateIrrad(ctx context.Context, db *pgxpool.Conn, amethysts int, irradSkips int) (err error) {
+	_, err = db.Exec(
+		ctx,
+		"UPDATE aot_player SET amethysts = $3, irrad_skips = $4 "+
+			"WHERE guild_id = $1 AND user_id = $2",
+		p.GuildID, p.UserID, amethysts, irradSkips)
+	if err == nil {
+		p.Amethysts = amethysts
+		p.IrradSkips = irradSkips
+	}
+	return
+}

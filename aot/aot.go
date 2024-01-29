@@ -4,6 +4,8 @@ const PlayerAnkhsLimit = 4
 
 const AnkhPoisonDieFaces = 6
 
+const IrradiateTukensCost int64 = 200
+
 const BanditSpearmanPrice = 140
 const BanditArcherPrice = 172
 const BanditSpearmanHP uint8 = 0x0E
