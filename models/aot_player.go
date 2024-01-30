@@ -7,13 +7,12 @@ import (
 )
 
 type AOTPlayer struct {
-	GuildID    int64
-	UserID     int64
-	Amethysts  int
-	Ankhs      int
-	Spearmen   int
-	Archers    int
-	IrradSkips int
+	GuildID   int64
+	UserID    int64
+	Amethysts int
+	Ankhs     int
+	Spearmen  int
+	Archers   int
 }
 
 func AOTPlayerByGuildUser(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (p AOTPlayer, err error) {
@@ -41,23 +40,22 @@ func AOTPlayersByGuild(ctx context.Context, db *pgxpool.Conn, gid int64) (ps []A
 func (p *AOTPlayer) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 	_, err = db.Exec(
 		ctx,
-		"INSERT INTO aot_player(guild_id, user_id, amethysts, ankhs, spearmen, archers, irrad_skips) "+
+		"INSERT INTO aot_player(guild_id, user_id, amethysts, ankhs, spearmen, archers) "+
 			"VALUES($1, $2, $3, $4, $5, $6, $7)",
-		p.GuildID, p.UserID, p.Amethysts, p.Ankhs, p.Spearmen, p.Archers, p.IrradSkips)
+		p.GuildID, p.UserID, p.Amethysts, p.Ankhs, p.Spearmen, p.Archers)
 	return
 }
 
-func (p *AOTPlayer) UpdateAnkhsBandits(ctx context.Context, db *pgxpool.Conn, ankhs int, spearmen int, archers int, irradSkips int) (err error) {
+func (p *AOTPlayer) UpdateAnkhsBandits(ctx context.Context, db *pgxpool.Conn, ankhs int, spearmen int, archers int) (err error) {
 	_, err = db.Exec(
 		ctx,
-		"UPDATE aot_player SET ankhs = $3, spearmen = $4, archers = $5, irrad_skips = $6 "+
+		"UPDATE aot_player SET ankhs = $3, spearmen = $4, archers = $5 "+
 			"WHERE guild_id = $1 AND user_id = $2",
-		p.GuildID, p.UserID, ankhs, spearmen, archers, irradSkips)
+		p.GuildID, p.UserID, ankhs, spearmen, archers)
 	if err == nil {
 		p.Ankhs = ankhs
 		p.Spearmen = spearmen
 		p.Archers = archers
-		p.IrradSkips = irradSkips
 	}
 	return
 }
@@ -75,15 +73,14 @@ func (p *AOTPlayer) UpdateBandits(ctx context.Context, db *pgxpool.Conn, spearme
 	return
 }
 
-func (p *AOTPlayer) UpdateIrrad(ctx context.Context, db *pgxpool.Conn, amethysts int, irradSkips int) (err error) {
+func (p *AOTPlayer) UpdateAmethysts(ctx context.Context, db *pgxpool.Conn, amethysts int) (err error) {
 	_, err = db.Exec(
 		ctx,
-		"UPDATE aot_player SET amethysts = $3, irrad_skips = $4 "+
+		"UPDATE aot_player SET amethysts = $3 "+
 			"WHERE guild_id = $1 AND user_id = $2",
-		p.GuildID, p.UserID, amethysts, irradSkips)
+		p.GuildID, p.UserID, amethysts)
 	if err == nil {
 		p.Amethysts = amethysts
-		p.IrradSkips = irradSkips
 	}
 	return
 }

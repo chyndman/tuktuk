@@ -42,17 +42,13 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 					"⚠️ Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
 			} else {
 				if isPlaying {
-					irrads := player.Ankhs - player.IrradSkips
+					irrads := player.Ankhs
 					minedTukens -= aot.IrradiateTukensCost * int64(irrads)
 					for 0 > minedTukens {
 						minedTukens += aot.IrradiateTukensCost
 						irrads--
 					}
 					newAmethysts := player.Amethysts + irrads
-					newIrradSkips := player.IrradSkips - irrads
-					if newIrradSkips < 0 {
-						newIrradSkips = 0
-					}
 
 					adj := "still"
 					punc := "."
@@ -62,7 +58,7 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 					}
 					minePlayerStr = fmt.Sprintf(" They %s have %d Amethysts%s", adj, newAmethysts, punc)
 
-					err = player.UpdateIrrad(ctx, db, newAmethysts, newIrradSkips)
+					err = player.UpdateAmethysts(ctx, db, newAmethysts)
 				}
 
 				if err == nil {

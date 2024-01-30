@@ -94,12 +94,9 @@ func (h AOTCycle) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid i
 func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re Reply, err error) {
 	var reportRaids string
 	var reportSummary string
-	var wallets []models.Wallet
 	var raids []models.AOTRaid
 	var players []models.AOTPlayer
-	if wallets, err = models.WalletsByGuild(ctx, db, gid); err != nil {
-		return
-	} else if raids, err = models.AOTRaidsByGuild(ctx, db, gid); err != nil {
+	if raids, err = models.AOTRaidsByGuild(ctx, db, gid); err != nil {
 		return
 	} else if 0 == len(raids) {
 		re.PublicMsg = "No raids were primed so nothing happened."
@@ -126,8 +123,7 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 		}
 		raids = raidsConfirmed
 
-		ankhsAdds := make([]int, len(players))
-		ankhsSubs := make([]int, len(players))
+		ankhsDiffs := make([]int, len(players))
 		spearmenDiffs := make([]int, len(players))
 		archersDiffs := make([]int, len(players))
 
@@ -191,8 +187,8 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 			}
 
 			if 0 < ankhsCaptured {
-				ankhsAdds[atkIdx] += ankhsCaptured
-				ankhsSubs[defIdx] -= ankhsCaptured
+				ankhsDiffs[atkIdx] += ankhsCaptured
+				ankhsDiffs[defIdx] -= ankhsCaptured
 				spearmenPoisoned := 0
 				archersPoisoned := 0
 
@@ -249,8 +245,7 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 			return ""
 		}
 		for i := range players {
-			playerSummary := strGainLoss(ankhsAdds[i], "Ankhs") +
-				strGainLoss(ankhsSubs[i], "Ankhs") +
+			playerSummary := strGainLoss(ankhsDiffs[i], "Ankhs") +
 				strGainLoss(spearmenDiffs[i], "Spearmen") +
 				strGainLoss(archersDiffs[i], "Archers")
 			if 0 < len(playerSummary) {
@@ -261,37 +256,16 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 
 		err = models.DeleteAOTRaidsByGuild(ctx, db, gid)
 		if err == nil {
-			now := time.Now()
 			for i := range players {
-				if 0 == ankhsAdds[i] && 0 == ankhsSubs[i] && 0 == spearmenDiffs[i] && 0 == archersDiffs[i] {
+				if 0 == ankhsDiffs[i] && 0 == spearmenDiffs[i] && 0 == archersDiffs[i] {
 					continue
 				}
 
-				newAnkhs := players[i].Ankhs + ankhsAdds[i] + ankhsSubs[i]
+				newAnkhs := players[i].Ankhs + ankhsDiffs[i]
 				newSpearmen := players[i].Spearmen + spearmenDiffs[i]
 				newArchers := players[i].Archers + archersDiffs[i]
-				newIrradSkips := players[i].IrradSkips
 
-				var timeEarliestMine time.Time
-				walletIdx := -1
-				for j := range wallets {
-					if wallets[j].UserID == players[i].UserID {
-						walletIdx = i
-						break
-					}
-				}
-				if -1 == walletIdx {
-					continue
-				}
-
-				if !wallets[walletIdx].TimeLastMined.IsZero() {
-					timeEarliestMine = wallets[walletIdx].TimeLastMined.Add(time.Hour * TukenMineCooldownHours)
-				}
-				if now.Before(timeEarliestMine) {
-					newIrradSkips += ankhsAdds[i]
-				}
-
-				errPlayerUpdate := players[i].UpdateAnkhsBandits(ctx, db, newAnkhs, newSpearmen, newArchers, newIrradSkips)
+				errPlayerUpdate := players[i].UpdateAnkhsBandits(ctx, db, newAnkhs, newSpearmen, newArchers)
 				if errPlayerUpdate != nil && err == nil {
 					err = errPlayerUpdate
 				}
