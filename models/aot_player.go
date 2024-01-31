@@ -41,7 +41,7 @@ func (p *AOTPlayer) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 	_, err = db.Exec(
 		ctx,
 		"INSERT INTO aot_player(guild_id, user_id, amethysts, ankhs, spearmen, archers) "+
-			"VALUES($1, $2, $3, $4, $5, $6, $7)",
+			"VALUES($1, $2, $3, $4, $5, $6)",
 		p.GuildID, p.UserID, p.Amethysts, p.Ankhs, p.Spearmen, p.Archers)
 	return
 }
