@@ -22,7 +22,8 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 	minedTukens := TukenMineMean + int64(rand.NormFloat64()*float64(TukenMineStdDev))
 	now := time.Now()
 	didMine := false
-	minePlayerStr := ""
+	minedPlayerStr := ""
+	havePlayerStr := ""
 
 	var wallet models.Wallet
 	wallet, err = models.WalletByGuildUser(ctx, db, gid, uid)
@@ -49,15 +50,12 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 						irrads--
 					}
 					newAmethysts := player.Amethysts + irrads
-
-					adj := "still"
-					punc := "."
 					if 0 < irrads {
-						adj = "now"
-						punc = "!"
+						minedPlayerStr = fmt.Sprintf(" and %d Amethysts", irrads)
 					}
-					minePlayerStr = fmt.Sprintf(" They %s have %d Amethysts%s", adj, newAmethysts, punc)
-
+					if 0 < newAmethysts {
+						havePlayerStr = fmt.Sprintf(" and %d Amethysts", newAmethysts)
+					}
 					err = player.UpdateAmethysts(ctx, db, newAmethysts)
 				}
 
@@ -85,10 +83,10 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 	}
 
 	if didMine {
-		re.PublicMsg = fmt.Sprintf(
-			"%s mined %s!%s", mention(uid), tukensDisplay(minedTukens), minePlayerStr)
 		re.PrivateMsg = fmt.Sprintf(
-			"You now have %s.", tukensDisplay(wallet.Tukens))
+			"You mined %s%s. You now have %s%s.",
+			tukensDisplay(minedTukens), minedPlayerStr,
+			tukensDisplay(wallet.Tukens), havePlayerStr)
 	}
 
 	return

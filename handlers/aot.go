@@ -171,8 +171,8 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 
 			reportRaids += fmt.Sprintf(
 				"- %s's raid against %s was %s!\n"+
-					"  - %s lost %d spearmen and %d archers\n"+
-					"  - %s lost %d spearmen and %d archers\n",
+					"  - %s lost %d Spearmen and %d Archers\n"+
+					"  - %s lost %d Spearmen and %d Archers\n",
 				atkMention, defMention, outcomeStr,
 				atkMention, atkSpearmenLost, atkArchersLost,
 				defMention, defSpearmenLost, defArchersLost)
@@ -216,7 +216,7 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 
 				if spearmenPoisoned > 0 || archersPoisoned > 0 {
 					reportRaids += fmt.Sprintf(
-						"    - An additional %d spearmen and %d archers died of radiation poisoning.\n",
+						"    - An additional %d Spearmen and %d Archers died of radiation poisoning.\n",
 						spearmenPoisoned, archersPoisoned)
 				} else {
 					reportRaids += "    - No bandits died of radiation poisoning!\n"
@@ -273,6 +273,47 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 
 			re.PublicMsg += report
 		}
+	}
+	return
+}
+
+type AOTStatus struct{}
+
+func (h AOTStatus) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
+	var player models.AOTPlayer
+	player, err = models.AOTPlayerByGuildUser(ctx, db, gid, uid)
+	if err == nil {
+		var wallet models.Wallet
+		wallet, err = models.WalletByGuildUser(ctx, db, gid, uid)
+		if err == nil {
+			re.PrivateMsg = fmt.Sprintf(
+				"You have:\n"+
+					"- %s\n"+
+					"- %d Amethysts\n"+
+					"- %d Ankhs\n"+
+					"- %d Spearmen\n"+
+					"- %d Archers",
+				tukensDisplay(wallet.Tukens),
+				player.Amethysts,
+				player.Ankhs,
+				player.Spearmen,
+				player.Archers)
+			var raid models.AOTRaid
+			raid, err = models.AOTRaidByGuildAttacker(ctx, db, gid, uid)
+			if err == nil {
+				re.PrivateMsg += fmt.Sprintf(
+					"You are primed to raid %s with %d Spearmen and %d Archers.",
+					mention(raid.DefenderUserID), raid.Spearmen, raid.Archers)
+			} else if errors.Is(err, pgx.ErrNoRows) {
+				err = nil
+			}
+		} else if errors.Is(err, pgx.ErrNoRows) {
+			err = nil
+			re.PrivateMsg = NoWalletErrorMsg
+		}
+	} else if errors.Is(err, pgx.ErrNoRows) {
+		err = nil
+		re.PrivateMsg = NoPlayerErrorMsg
 	}
 	return
 }

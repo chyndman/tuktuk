@@ -63,14 +63,14 @@ func (h BanditHire) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid
 		if err == nil {
 			if totalPrice == 0 {
 				re.PrivateMsg = fmt.Sprintf(
-					"You have %s, %d spearmen and %d archers.%s",
+					"You have %s, %d Spearmen and %d Archers.%s",
 					tukensDisplay(wallet.Tukens),
 					player.Spearmen,
 					player.Archers,
 					blk)
 			} else if wallet.Tukens < totalPrice {
 				re.PrivateMsg = fmt.Sprintf(
-					"⚠️ Unable to hire. You have %s, %d spearmen and %d archers.%s",
+					"⚠️ Unable to hire. You have %s, %d Spearmen and %d Archers.%s",
 					tukensDisplay(wallet.Tukens),
 					player.Spearmen,
 					player.Archers,
@@ -81,7 +81,7 @@ func (h BanditHire) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid
 					err = player.UpdateBandits(ctx, db, player.Spearmen+h.Spearmen, player.Archers+h.Archers)
 					if err == nil {
 						re.PrivateMsg = fmt.Sprintf(
-							"Bandits hired. You now have %s, %d spearmen and %d archers.%s",
+							"Bandits hired. You now have %s, %d Spearmen and %d Archers.%s",
 							tukensDisplay(wallet.Tukens),
 							player.Spearmen,
 							player.Archers,
@@ -117,7 +117,7 @@ func (h BanditRaid) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid
 			var raid models.AOTRaid
 			if h.Spearmen > playerAtk.Spearmen || h.Archers > playerAtk.Archers {
 				re.PrivateMsg = fmt.Sprintf(
-					"⚠️ You don't have enough bandits for this raid. You have %d spearmen and %d archers.",
+					"⚠️ You don't have enough bandits for this raid. You have %d Spearmen and %d Archers.",
 					playerAtk.Spearmen, playerAtk.Archers)
 			} else if raid, err = models.AOTRaidByGuildAttacker(ctx, db, gid, uid); err == nil {
 				err = raid.Update(ctx, db, h.TargetUserID, h.Spearmen, h.Archers)
@@ -132,7 +132,7 @@ func (h BanditRaid) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid
 
 			if err == nil && 0 == len(re.PrivateMsg) {
 				re.PrivateMsg = fmt.Sprintf(
-					"You are now primed to raid %s with %d spearmen and %d archers.",
+					"You are now primed to raid %s with %d Spearmen and %d Archers.",
 					mention(h.TargetUserID), h.Spearmen, h.Archers)
 			}
 		} else if errors.Is(err, pgx.ErrNoRows) {

@@ -317,6 +317,14 @@ var slashAOTCycle = tempest.Command{
 	},
 }
 
+var slashAOTStatus = tempest.Command{
+	Name:        "status",
+	Description: "Get your player status",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		doDBHandler(handlers.AOTStatus{}, itx)
+	},
+}
+
 func main() {
 	publicKey := os.Getenv("TUKTUK_PUBLIC_KEY")
 	if 0 == len(publicKey) {
@@ -380,6 +388,7 @@ func main() {
 	_ = client.RegisterCommand(slashAOT)
 	_ = client.RegisterSubCommand(slashAOTJoin, slashAOT.Name)
 	_ = client.RegisterSubCommand(slashAOTCycle, slashAOT.Name)
+	_ = client.RegisterSubCommand(slashAOTStatus, slashAOT.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
