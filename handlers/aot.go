@@ -216,10 +216,10 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 
 				if spearmenPoisoned > 0 || archersPoisoned > 0 {
 					reportRaids += fmt.Sprintf(
-						"    - An additional %d spearmen and %d archers died of radiation sickness.\n",
+						"    - An additional %d spearmen and %d archers died of radiation poisoning.\n",
 						spearmenPoisoned, archersPoisoned)
 				} else {
-					reportRaids += "    - No bandits died of radiation sickness!\n"
+					reportRaids += "    - No bandits died of radiation poisoning!\n"
 				}
 			}
 		}
