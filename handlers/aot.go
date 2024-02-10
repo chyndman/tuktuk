@@ -41,6 +41,18 @@ func (h AOTJoin) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid in
 			err = player.Insert(ctx, db)
 			if err == nil {
 				re.PublicMsg = fmt.Sprintf("%s is now playing Age of Tuk!", mention(uid))
+				var ankhtion models.AOTAnkhtion
+				ankhtion, err = models.AOTAnkhtionByGuild(ctx, db, gid)
+				if errors.Is(err, pgx.ErrNoRows) {
+					now := time.Now()
+					ankhtion.GuildID = gid
+					ankhtion.StartTime = now.Add(time.Duration(aot.AnkhtionCooldownHours) * time.Hour)
+					ankhtion.PriceSchedule = aot.AnkhtionPriceScheduleCreate()
+					err = ankhtion.Insert(ctx, db)
+					if err == nil {
+						re.PublicMsg += fmt.Sprintf(" The first Ankhtion will start in %d hours.", aot.AnkhtionCooldownHours)
+					}
+				}
 			}
 		}
 	}

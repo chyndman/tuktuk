@@ -325,6 +325,19 @@ var slashAOTStatus = tempest.Command{
 	},
 }
 
+var slashAnkhtion = tempest.Command{
+	Name:        "ankhtion",
+	Description: "Ankhtion",
+}
+
+var slashAnkhtionView = tempest.Command{
+	Name:        "view",
+	Description: "View current status of ongoing Ankhtion",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		doDBHandler(handlers.AnkhtionView{}, itx)
+	},
+}
+
 func main() {
 	publicKey := os.Getenv("TUKTUK_PUBLIC_KEY")
 	if 0 == len(publicKey) {
@@ -389,6 +402,8 @@ func main() {
 	_ = client.RegisterSubCommand(slashAOTJoin, slashAOT.Name)
 	_ = client.RegisterSubCommand(slashAOTCycle, slashAOT.Name)
 	_ = client.RegisterSubCommand(slashAOTStatus, slashAOT.Name)
+	_ = client.RegisterCommand(slashAnkhtion)
+	_ = client.RegisterSubCommand(slashAnkhtionView, slashAnkhtion.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
