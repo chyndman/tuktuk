@@ -338,6 +338,14 @@ var slashAnkhtionView = tempest.Command{
 	},
 }
 
+var slashAnkhtionBuy = tempest.Command{
+	Name:        "buy",
+	Description: "Buy Ankh at current asking price",
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		doDBHandler(handlers.AnkhtionBuy{}, itx)
+	},
+}
+
 func main() {
 	publicKey := os.Getenv("TUKTUK_PUBLIC_KEY")
 	if 0 == len(publicKey) {
@@ -404,6 +412,7 @@ func main() {
 	_ = client.RegisterSubCommand(slashAOTStatus, slashAOT.Name)
 	_ = client.RegisterCommand(slashAnkhtion)
 	_ = client.RegisterSubCommand(slashAnkhtionView, slashAnkhtion.Name)
+	_ = client.RegisterSubCommand(slashAnkhtionBuy, slashAnkhtion.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")

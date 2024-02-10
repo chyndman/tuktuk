@@ -60,6 +60,18 @@ func (p *AOTPlayer) UpdateAnkhsBandits(ctx context.Context, db *pgxpool.Conn, an
 	return
 }
 
+func (p *AOTPlayer) UpdateAnkhs(ctx context.Context, db *pgxpool.Conn, ankhs int) (err error) {
+	_, err = db.Exec(
+		ctx,
+		"UPDATE aot_player SET ankhs = $3 "+
+			"WHERE guild_id = $1 AND user_id = $2",
+		p.GuildID, p.UserID, ankhs)
+	if err == nil {
+		p.Ankhs = ankhs
+	}
+	return
+}
+
 func (p *AOTPlayer) UpdateBandits(ctx context.Context, db *pgxpool.Conn, spearmen int, archers int) (err error) {
 	_, err = db.Exec(
 		ctx,

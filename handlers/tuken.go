@@ -40,7 +40,7 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 			if now.Before(timeEarliestMine) {
 				wait := timeEarliestMine.Sub(now).Round(time.Second)
 				re.PrivateMsg = fmt.Sprintf(
-					"⚠️ Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
+					"⏱️ Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
 			} else {
 				if isPlaying {
 					irrads := player.Ankhs
