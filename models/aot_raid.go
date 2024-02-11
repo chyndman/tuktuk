@@ -40,9 +40,9 @@ func AOTRaidsByGuild(ctx context.Context, db *pgxpool.Conn, gid int64) (rs []AOT
 func (r *AOTRaid) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 	_, err = db.Exec(
 		ctx,
-		"INSERT INTO aot_raid(guild_id, attacker_user_id, defender_user_id, spearmen, archers) "+
-			"VALUES($1, $2, $3, $4, $5)",
-		r.GuildID, r.AttackerUserID, r.DefenderUserID, r.Spearmen, r.Archers)
+		"INSERT INTO aot_raid(guild_id, attacker_user_id, defender_user_id, reactor, spearmen, archers) "+
+			"VALUES($1, $2, $3, $4, $5, $6)",
+		r.GuildID, r.AttackerUserID, r.DefenderUserID, r.Reactor, r.Spearmen, r.Archers)
 	return
 }
 

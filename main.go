@@ -291,7 +291,7 @@ var slashBanditRaid = tempest.Command{
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
 		var h handlers.BanditRaid
 		targetOpt, _ := itx.GetOptionValue("target")
-		reactorOpt, _ := itx.GetOptionValue("archers")
+		reactorOpt, _ := itx.GetOptionValue("reactor")
 		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
 		archersOpt, archersGiven := itx.GetOptionValue("archers")
 		targetUserSnowflake, _ := tempest.StringToSnowflake(targetOpt.(string))
