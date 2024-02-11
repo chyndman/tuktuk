@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	tempest "github.com/Amatsagu/Tempest"
+	"github.com/chyndman/tuktuk/aot"
 	"github.com/chyndman/tuktuk/handlers"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
@@ -256,13 +257,21 @@ var slashBanditHire = tempest.Command{
 
 var slashBanditRaid = tempest.Command{
 	Name:        "raid",
-	Description: "Send bandit units to attack another member",
+	Description: "Send bandit units to attack another player's reactor",
 	Options: []tempest.CommandOption{
 		{
 			Name:        "target",
 			Description: "target of your raid",
 			Type:        tempest.USER_OPTION_TYPE,
 			Required:    true,
+		},
+		{
+			Name:        "reactor",
+			Description: "reactor to attack",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    true,
+			MinValue:    1,
+			MaxValue:    aot.PlayerAnkhsLimit,
 		},
 		{
 			Name:        "spearmen",
@@ -282,10 +291,55 @@ var slashBanditRaid = tempest.Command{
 	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
 		var h handlers.BanditRaid
 		targetOpt, _ := itx.GetOptionValue("target")
+		reactorOpt, _ := itx.GetOptionValue("archers")
 		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
 		archersOpt, archersGiven := itx.GetOptionValue("archers")
 		targetUserSnowflake, _ := tempest.StringToSnowflake(targetOpt.(string))
 		h.TargetUserID = int64(targetUserSnowflake)
+		h.Reactor = int16(reactorOpt.(float64))
+		if spearmenGiven {
+			h.Spearmen = int(spearmenOpt.(float64))
+		}
+		if archersGiven {
+			h.Archers = int(archersOpt.(float64))
+		}
+		doDBHandler(h, itx)
+	},
+}
+
+var slashBanditGuard = tempest.Command{
+	Name:        "guard",
+	Description: "Assign bandit units to guard one of your own reactors",
+	Options: []tempest.CommandOption{
+		{
+			Name:        "reactor",
+			Description: "reactor to guard",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    true,
+			MinValue:    1,
+			MaxValue:    aot.PlayerAnkhsLimit,
+		},
+		{
+			Name:        "spearmen",
+			Description: "number of spearmen to assign",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    false,
+			MinValue:    1,
+		},
+		{
+			Name:        "archers",
+			Description: "number of archers to assign",
+			Type:        tempest.INTEGER_OPTION_TYPE,
+			Required:    false,
+			MinValue:    1,
+		},
+	},
+	SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+		var h handlers.BanditGuard
+		reactorOpt, _ := itx.GetOptionValue("reactor")
+		spearmenOpt, spearmenGiven := itx.GetOptionValue("spearmen")
+		archersOpt, archersGiven := itx.GetOptionValue("archers")
+		h.Reactor = int16(reactorOpt.(float64))
 		if spearmenGiven {
 			h.Spearmen = int(spearmenOpt.(float64))
 		}
@@ -406,6 +460,7 @@ func main() {
 	_ = client.RegisterSubCommand(slashBanditSim, slashBandit.Name)
 	_ = client.RegisterSubCommand(slashBanditHire, slashBandit.Name)
 	_ = client.RegisterSubCommand(slashBanditRaid, slashBandit.Name)
+	_ = client.RegisterSubCommand(slashBanditGuard, slashBandit.Name)
 	_ = client.RegisterCommand(slashAOT)
 	_ = client.RegisterSubCommand(slashAOTJoin, slashAOT.Name)
 	_ = client.RegisterSubCommand(slashAOTCycle, slashAOT.Name)

@@ -314,10 +314,28 @@ func (h AOTStatus) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 			raid, err = models.AOTRaidByGuildAttacker(ctx, db, gid, uid)
 			if err == nil {
 				re.PrivateMsg += fmt.Sprintf(
-					"You are primed to raid %s with %d Spearmen and %d Archers.",
+					"\nYou are primed to raid %s with %d Spearmen and %d Archers.",
 					mention(raid.DefenderUserID), raid.Spearmen, raid.Archers)
 			} else if errors.Is(err, pgx.ErrNoRows) {
 				err = nil
+			}
+
+			if err == nil {
+				var guards []models.AOTGuard
+				guards, err = models.AOTGuardsByGuildUser(ctx, db, gid, uid)
+				if err == nil && 0 < len(guards) {
+					re.PrivateMsg += "\nYou are primed to guard:"
+					for r := int16(1); r <= aot.PlayerAnkhsLimit; r++ {
+						for _, g := range guards {
+							if g.Reactor == r {
+								re.PrivateMsg += fmt.Sprintf(
+									"\n- Reactor #%d with %d Spearmen and %d Archers.",
+									r, g.Spearmen, g.Archers)
+								break
+							}
+						}
+					}
+				}
 			}
 		} else if errors.Is(err, pgx.ErrNoRows) {
 			err = nil
