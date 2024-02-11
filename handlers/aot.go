@@ -105,26 +105,40 @@ func (h AOTCycle) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid i
 
 func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re Reply, err error) {
 	var reportRaids string
-	var reportSummary string
+
 	var raids []models.AOTRaid
-	var players []models.AOTPlayer
 	if raids, err = models.AOTRaidsByGuild(ctx, db, gid); err != nil {
 		return
-	} else if 0 == len(raids) {
+	}
+	if 0 == len(raids) {
 		re.PublicMsg = "No raids were primed so nothing happened."
-	} else if players, err = models.AOTPlayersByGuild(ctx, db, gid); err != nil {
 		return
-	} else {
-		var raidsConfirmed []models.AOTRaid
-		for _, player := range players {
+	}
+
+	var players []models.AOTPlayer
+	if players, err = models.AOTPlayersByGuild(ctx, db, gid)
+		err != nil {
+		return
+	}
+	var guards []models.AOTGuard
+	if guards, err = models.AOTGuardsByGuild(ctx, db, gid)
+		err != nil {
+		return
+	}
+
+	// Cancel duplicate raids against the same reactor.
+	var raidsConfirmed []models.AOTRaid
+	for _, player := range players {
+		didCancel := false
+		for r := int16(1); r <= aot.PlayerAnkhsLimit; r++ {
 			idxConfirm := -1
-			for i := 0; i < len(raids); i++ {
-				if raids[i].DefenderUserID == player.UserID {
+			for i := range raids {
+				if raids[i].Reactor == r && raids[i].DefenderUserID == player.UserID {
 					if -1 == idxConfirm {
 						idxConfirm = i
 					} else {
 						idxConfirm = -1
-						reportRaids += fmt.Sprintf("- Multiple raids targeting %s were canceled!\n", mention(player.UserID))
+						didCancel = true
 						break
 					}
 				}
@@ -133,159 +147,183 @@ func (h AOTCycle) doCycle(ctx context.Context, db *pgxpool.Conn, gid int64) (re 
 				raidsConfirmed = append(raidsConfirmed, raids[idxConfirm])
 			}
 		}
-		raids = raidsConfirmed
 
-		ankhsDiffs := make([]int, len(players))
-		spearmenDiffs := make([]int, len(players))
-		archersDiffs := make([]int, len(players))
-
-		for i := range raids {
-			for j := 0; j < len(players); j++ {
-				if players[j].UserID == raids[i].AttackerUserID {
-					players[j].Spearmen -= raids[i].Spearmen
-					players[j].Archers -= raids[i].Archers
-					spearmenDiffs[j] += raids[i].Spearmen
-					archersDiffs[j] += raids[i].Archers
-					break
-				}
-			}
-		}
-
-		for _, raid := range raids {
-			atkIdx, defIdx := -1, -1
-			for i := range players {
-				switch players[i].UserID {
-				case raid.AttackerUserID:
-					atkIdx = i
-				case raid.DefenderUserID:
-					defIdx = i
-				}
-				if atkIdx != -1 && defIdx != -1 {
-					break
-				}
-			}
-			atkMention := mention(players[atkIdx].UserID)
-			defMention := mention(players[defIdx].UserID)
-
-			atkSpearmenLost, atkArchersLost, defSpearmenLost, defArchersLost := aot.Battle(
-				raid.Spearmen, raid.Archers, players[defIdx].Spearmen, players[defIdx].Archers)
-			spearmenDiffs[atkIdx] -= atkSpearmenLost
-			archersDiffs[atkIdx] -= atkArchersLost
-			spearmenDiffs[defIdx] -= defSpearmenLost
-			archersDiffs[defIdx] -= defArchersLost
-			outcomeStr := "repelled"
-			if atkSpearmenLost < raid.Spearmen || atkArchersLost < raid.Archers {
-				outcomeStr = "successful"
-			}
-
-			spearmenSurvived := raid.Spearmen - atkSpearmenLost
-			archersSurvived := raid.Archers - atkArchersLost
-
+		if didCancel {
 			reportRaids += fmt.Sprintf(
-				"- %s's raid against %s was %s!\n"+
-					"  - %s lost %d Spearmen and %d Archers\n"+
-					"  - %s lost %d Spearmen and %d Archers\n",
-				atkMention, defMention, outcomeStr,
-				atkMention, atkSpearmenLost, atkArchersLost,
-				defMention, defSpearmenLost, defArchersLost)
-
-			ankhsCaptured := 0
-			if "successful" == outcomeStr {
-				ankhsCaptureMax := aot.PlayerAnkhsLimit - players[atkIdx].Ankhs
-				ankhsCaptured = players[defIdx].Ankhs
-				if ankhsCaptured > ankhsCaptureMax {
-					ankhsCaptured = ankhsCaptureMax
-				}
-			}
-
-			if 0 < ankhsCaptured {
-				ankhsDiffs[atkIdx] += ankhsCaptured
-				ankhsDiffs[defIdx] -= ankhsCaptured
-				spearmenPoisoned := 0
-				archersPoisoned := 0
-
-				for i := 0; i < spearmenSurvived+archersSurvived; i++ {
-					for d := 0; d < ankhsCaptured; d++ {
-						roll := rand.Intn(aot.AnkhPoisonDieFaces)
-						if 0 == roll {
-							if i < spearmenSurvived {
-								spearmenPoisoned++
-							} else {
-								archersPoisoned++
-							}
-							break
-						}
-					}
-				}
-
-				spearmenDiffs[atkIdx] -= spearmenPoisoned
-				archersDiffs[atkIdx] -= archersPoisoned
-
-				reportRaids += fmt.Sprintf(
-					"  - %s captured %d Ankhs!\n",
-					atkMention,
-					ankhsCaptured)
-
-				if spearmenPoisoned > 0 || archersPoisoned > 0 {
-					reportRaids += fmt.Sprintf(
-						"    - An additional %d Spearmen and %d Archers died of radiation poisoning.\n",
-						spearmenPoisoned, archersPoisoned)
-				} else {
-					reportRaids += "    - No bandits died of radiation poisoning!\n"
-				}
-			}
-		}
-
-		for i := range raids {
-			for j := 0; j < len(players); j++ {
-				if players[j].UserID == raids[i].AttackerUserID {
-					players[j].Spearmen += raids[i].Spearmen
-					players[j].Archers += raids[i].Archers
-					spearmenDiffs[j] -= raids[i].Spearmen
-					archersDiffs[j] -= raids[i].Archers
-					break
-				}
-			}
-		}
-
-		strGainLoss := func(i int, obj string) string {
-			if 0 < i {
-				return fmt.Sprintf("  - Gained %d %s!\n", i, obj)
-			} else if 0 > i {
-				return fmt.Sprintf("  - Lost %d %s\n", -i, obj)
-			}
-			return ""
-		}
-		for i := range players {
-			playerSummary := strGainLoss(ankhsDiffs[i], "Ankhs") +
-				strGainLoss(spearmenDiffs[i], "Spearmen") +
-				strGainLoss(archersDiffs[i], "Archers")
-			if 0 < len(playerSummary) {
-				reportSummary += fmt.Sprintf("- %s\n%s", mention(players[i].UserID), playerSummary)
-			}
-		}
-		report := "# Cycle Report\n## Summary\n" + reportSummary + "## Raid Details\n" + reportRaids
-
-		err = models.DeleteAOTRaidsByGuild(ctx, db, gid)
-		if err == nil {
-			for i := range players {
-				if 0 == ankhsDiffs[i] && 0 == spearmenDiffs[i] && 0 == archersDiffs[i] {
-					continue
-				}
-
-				newAnkhs := players[i].Ankhs + ankhsDiffs[i]
-				newSpearmen := players[i].Spearmen + spearmenDiffs[i]
-				newArchers := players[i].Archers + archersDiffs[i]
-
-				errPlayerUpdate := players[i].UpdateAnkhsBandits(ctx, db, newAnkhs, newSpearmen, newArchers)
-				if errPlayerUpdate != nil && err == nil {
-					err = errPlayerUpdate
-				}
-			}
-
-			re.PublicMsg += report
+				"- Multiple raids targeting %s were canceled!\n",
+				mention(player.UserID))
 		}
 	}
+	raids = raidsConfirmed
+
+	// Add dummy guards for occupied but undefended reactors.
+	for _, player := range players {
+		for r := int16(1); int(r) <= player.Ankhs; r++ {
+			exists := false
+			for _, guard := range guards {
+				if guard.UserID == player.UserID && guard.Reactor == r {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				guards = append(guards, models.AOTGuard{
+					GuildID:  gid,
+					UserID:   player.UserID,
+					Reactor:  r,
+					Spearmen: 0,
+					Archers:  0,
+				})
+			}
+		}
+	}
+
+	// Randomly put unassigned units into guards.
+	for _, player := range players {
+		if 0 == player.Ankhs {
+			continue
+		}
+		spearmen := 0
+		archers := 0
+		for _, raid := range raids {
+			if raid.AttackerUserID == player.UserID {
+				spearmen += raid.Spearmen
+				archers += raid.Archers
+				break
+			}
+		}
+		for _, guard := range guards {
+			if guard.UserID == player.UserID {
+				spearmen += guard.Spearmen
+				archers += guard.Archers
+			}
+		}
+
+		for ; spearmen < player.Spearmen || archers < player.Archers; {
+			r := int16(rand.Intn(player.Ankhs)) + 1
+			for i := range guards {
+				if guards[i].UserID == player.UserID && guards[i].Reactor == r {
+					if spearmen < player.Spearmen {
+						guards[i].Spearmen++
+						spearmen++
+					} else {
+						guards[i].Archers++
+						archers++
+					}
+					break
+				}
+			}
+		}
+	}
+
+	prevPlayers := make([]models.AOTPlayer, len(players))
+	copy(prevPlayers, players)
+
+	for _, raid := range raids {
+		atkIdx, defIdx := -1, -1
+		for i := range players {
+			switch players[i].UserID {
+			case raid.AttackerUserID:
+				atkIdx = i
+			case raid.DefenderUserID:
+				defIdx = i
+			}
+			if atkIdx != -1 && defIdx != -1 {
+				break
+			}
+		}
+		atkMention := mention(players[atkIdx].UserID)
+		defMention := mention(players[defIdx].UserID)
+
+		guardIdx := -1
+		for i := range guards {
+			if guards[i].UserID == players[defIdx].UserID && guards[i].Reactor == raid.Reactor {
+				guardIdx = i
+				break
+			}
+		}
+
+		if -1 == guardIdx {
+			reportRaids += fmt.Sprintf(
+				"- %s's raid against %s had no effect (the selected reactor was empty).\n",
+				atkMention, defMention)
+			continue
+		}
+
+		atkSpearmenLost, atkArchersLost, defSpearmenLost, defArchersLost := aot.Battle(
+			raid.Spearmen, raid.Archers, guards[guardIdx].Spearmen, guards[guardIdx].Archers)
+		players[atkIdx].Spearmen -= atkSpearmenLost
+		players[atkIdx].Archers -= atkArchersLost
+		players[defIdx].Spearmen -= defSpearmenLost
+		players[defIdx].Archers -= defArchersLost
+		outcomeStr := "repelled"
+		if atkSpearmenLost < raid.Spearmen || atkArchersLost < raid.Archers {
+			outcomeStr = "successful"
+		}
+
+		reportRaids += fmt.Sprintf(
+			"- %s's raid against %s was %s!\n"+
+				"  - %s lost %d Spearmen and %d Archers\n"+
+				"  - %s lost %d Spearmen and %d Archers\n",
+			atkMention, defMention, outcomeStr,
+			atkMention, atkSpearmenLost, atkArchersLost,
+			defMention, defSpearmenLost, defArchersLost)
+
+		if "successful" == outcomeStr && players[atkIdx].Ankhs < aot.PlayerAnkhsLimit {
+			players[atkIdx].Ankhs++
+			players[defIdx].Ankhs--
+
+			spearmenPoisoned := 0
+			archersPoisoned := 0
+			spearmenSurvived := raid.Spearmen - atkSpearmenLost
+			archersSurvived := raid.Archers - atkArchersLost
+			for i := 0; i < spearmenSurvived+archersSurvived; i++ {
+				roll := rand.Intn(aot.AnkhPoisonDieFaces)
+				if 0 == roll {
+					if i < spearmenSurvived {
+						spearmenPoisoned++
+						players[atkIdx].Spearmen--
+					} else {
+						archersPoisoned++
+						players[atkIdx].Archers--
+					}
+					break
+				}
+			}
+
+			reportRaids += fmt.Sprintf(
+				"  - %s captured an Ankh!\n",
+				atkMention)
+			if spearmenPoisoned > 0 || archersPoisoned > 0 {
+				reportRaids += fmt.Sprintf(
+					"    - An additional %d Spearmen and %d Archers died of radiation poisoning.\n",
+					spearmenPoisoned, archersPoisoned)
+			} else {
+				reportRaids += "    - No bandits died of radiation poisoning!\n"
+			}
+		}
+	}
+
+	if err = models.DeleteAOTRaidsByGuild(ctx, db, gid); err != nil {
+		return
+	}
+	if err = models.DeleteAOTGuardsByGuild(ctx, db, gid); err != nil {
+		return
+	}
+
+	for i := range players {
+		if players[i].Ankhs != prevPlayers[i].Ankhs ||
+			players[i].Spearmen != prevPlayers[i].Spearmen ||
+			players[i].Archers != prevPlayers[i].Archers {
+			errPlayer := prevPlayers[i].UpdateAnkhsBandits(ctx, db, players[i].Ankhs, players[i].Spearmen, players[i].Archers)
+			if errPlayer != nil && err == nil {
+				err = errPlayer
+			}
+		}
+	}
+
+	report := "# New Cycle\n## Raids\n" + reportRaids
+	re.PublicMsg = report
 	return
 }
 
