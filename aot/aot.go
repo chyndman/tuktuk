@@ -236,10 +236,13 @@ func AnkhtionPriceScheduleSeek(sched []int, secs int) (price int64, index int) {
 	index = -1
 	for i, s := range sched {
 		if s <= secs {
-			price = AnkhtionPriceSample(s)
 			index = i
+		} else {
 			break
 		}
+	}
+	if -1 != index {
+		price = AnkhtionPriceSample(sched[index])
 	}
 	return
 }
