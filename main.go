@@ -7,6 +7,7 @@ import (
 	"github.com/chyndman/tuktuk/handlers"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 )
@@ -446,9 +447,13 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.Dir("./public")))
+
 	client := tempest.NewClient(tempest.ClientOptions{
-		PublicKey: publicKey,
-		Rest:      tempest.NewRest(botToken),
+		PublicKey:    publicKey,
+		Rest:         tempest.NewRest(botToken),
+		HTTPServeMux: mux,
 	})
 
 	_ = client.RegisterCommand(slashRoll)

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Battle | Tuk-Tuk</title>
+    <link rel="stylesheet" href="https://assets.ubuntu.com/v1/vanilla-framework-version-4.7.0.min.css"/>
+</head>
+<body class="is-paper">
+<article class="u-fixed-width">
+    <h1>Battle</h1>
+    <div class="p-card">
+        <div class="row">
+            <div class="col-6">
+                <h5>Attacker</h5>
+                <label>Spearmen</label>
+                <div class="p-slider__wrapper">
+                    <input type="range" min="0" max="100" value="0" step="1" id="slider-atkSpearmen">
+                    <input class="p-slider__input" type="text" maxlength="3" id="slider-atkSpearmen-input" tabindex="0">
+                </div>
+                <label>Archers</label>
+                <div class="p-slider__wrapper">
+                    <input type="range" min="0" max="100" value="0" step="1" id="slider-atkArchers">
+                    <input class="p-slider__input" type="text" maxlength="3" id="slider-atkArchers-input" tabindex="0">
+                </div>
+            </div>
+            <div class="col-6">
+                <h5>Defender</h5>
+                <label>Spearmen</label>
+                <div class="p-slider__wrapper">
+                    <input type="range" min="0" max="100" value="0" step="1" id="slider-defSpearmen">
+                    <input class="p-slider__input" type="text" maxlength="3" id="slider-defSpearmen-input" tabindex="0">
+                </div>
+                <label>Archers</label>
+                <div class="p-slider__wrapper">
+                    <input type="range" min="0" max="100" value="0" step="1" id="slider-defArchers">
+                    <input class="p-slider__input" type="text" maxlength="3" id="slider-defArchers-input" tabindex="0">
+                </div>
+            </div>
+        </div>
+        <button class="p-button--positive">Run</button>
+        <div class="p-code-snippet">
+            <div class="p-code-snippet__header">
+                <h5 class="p-code-snippet__title">Result</h5>
+            </div>
+            <pre class="p-code-snippet__block is-wrapped"><code>very neat</code></pre>
+        </div>
+    </div>
+</article>
+</body>
+</html>
