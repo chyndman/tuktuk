@@ -1,50 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <title>Battle | Tuk-Tuk</title>
-    <link rel="stylesheet" href="https://assets.ubuntu.com/v1/vanilla-framework-version-4.7.0.min.css"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+    <meta charset="UTF-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge;"/>
+    <link href="https://unpkg.com/cirrus-ui" type="text/css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:200,300,400,600,700" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet"/>
 </head>
-<body class="is-paper">
-<article class="u-fixed-width">
-    <h1>Battle</h1>
-    <div class="p-card">
-        <div class="row">
-            <div class="col-6">
-                <h5>Attacker</h5>
-                <label>Spearmen</label>
-                <div class="p-slider__wrapper">
-                    <input type="range" min="0" max="100" value="0" step="1" id="slider-atkSpearmen">
-                    <input class="p-slider__input" type="text" maxlength="3" id="slider-atkSpearmen-input" tabindex="0">
-                </div>
-                <label>Archers</label>
-                <div class="p-slider__wrapper">
-                    <input type="range" min="0" max="100" value="0" step="1" id="slider-atkArchers">
-                    <input class="p-slider__input" type="text" maxlength="3" id="slider-atkArchers-input" tabindex="0">
+<body>
+<div class="hero">
+    <article class="content px-2">
+        <h1>Battle</h1>
+        <div class="grid-md grid-cols-2 u-gap-2 mb-2">
+            <div>
+                <h6>Attacker</h6>
+                <label htmlFor="atkSpearmen">Spearmen</label>
+                <input type="range" id="atkSpearmen" name="atkSpearmen" min="0" max="100"/>
+                <label htmlFor="atkArchers">Archers</label>
+                <div class="u-flex u-gap-2">
+                    <input class="u-inline w-12 u-flex-grow-0" type="number" id="atkArchersNum"
+                           name="atkArchersNum" min="0"
+                           max="100"/>
+                    <input class="u-inline u-flex-grow-1" type="range" id="atkArchers" name="atkArchers"
+                           min="0"
+                           max="100"/>
                 </div>
             </div>
-            <div class="col-6">
+            <div>
                 <h5>Defender</h5>
-                <label>Spearmen</label>
-                <div class="p-slider__wrapper">
-                    <input type="range" min="0" max="100" value="0" step="1" id="slider-defSpearmen">
-                    <input class="p-slider__input" type="text" maxlength="3" id="slider-defSpearmen-input" tabindex="0">
-                </div>
-                <label>Archers</label>
-                <div class="p-slider__wrapper">
-                    <input type="range" min="0" max="100" value="0" step="1" id="slider-defArchers">
-                    <input class="p-slider__input" type="text" maxlength="3" id="slider-defArchers-input" tabindex="0">
-                </div>
+                <label htmlFor="defSpearmen">Spearmen</label>
+                <input type="range" id="defSpearmen" name="defSpearmen" min="0" max="100"/>
+                <label htmlFor="atkArchers">Archers</label>
+                <input type="range" id="defArchers" name="defArchers" min="0" max="100"/>
             </div>
         </div>
-        <button class="p-button--positive">Run</button>
-        <div class="p-code-snippet">
-            <div class="p-code-snippet__header">
-                <h5 class="p-code-snippet__title">Result</h5>
-            </div>
-            <pre class="p-code-snippet__block is-wrapped"><code>very neat</code></pre>
+        <button class="btn-primary">Run</button>
+        <div class="animated loading">
+            <pre><code>something happened abcdefg</code></pre>
         </div>
-    </div>
-</article>
+    </article>
+</div>
 </body>
 </html>
