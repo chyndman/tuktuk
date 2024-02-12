@@ -8,39 +8,72 @@
     <link href="https://unpkg.com/cirrus-ui" type="text/css" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:200,300,400,600,700" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet"/>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body>
 <div class="hero">
-    <article class="content px-2">
+    <article class="content px-2" x-data>
         <h1>Battle</h1>
-        <div class="grid-md grid-cols-2 u-gap-2 mb-2">
-            <div>
-                <h6>Attacker</h6>
-                <label htmlFor="atkSpearmen">Spearmen</label>
-                <input type="range" id="atkSpearmen" name="atkSpearmen" min="0" max="100"/>
-                <label htmlFor="atkArchers">Archers</label>
-                <div class="u-flex u-gap-2">
-                    <input class="u-inline w-12 u-flex-grow-0" type="number" id="atkArchersNum"
-                           name="atkArchersNum" min="0"
-                           max="100"/>
-                    <input class="u-inline u-flex-grow-1" type="range" id="atkArchers" name="atkArchers"
-                           min="0"
-                           max="100"/>
+        <div class=" grid-md grid-cols-2 u-gap-2 mb-2">
+            <template x-for="(army, key) in $store.battle.armies">
+                <div>
+                    <h6 x-text="army.name"></h6>
+                    <label>Spearmen</label>
+                    <div class="u-flex u-gap-2">
+                        <input x-model="army.spearmen"
+                               class=" u-inline w-12 u-flex-grow-0"
+                               type="number" min="0"
+                               max="100"/>
+                        <input x-model="army.spearmen" class="u-inline u-flex-grow-1" type="range" min="0"
+                               max="100"/>
+                    </div>
+                    <label>Archers</label>
+                    <div class="u-flex u-gap-2">
+                        <input x-model="army.archers"
+                               class="u-inline w-12 u-flex-grow-0" type="number"
+                               min="0"
+                               max="100"/>
+                        <input x-model="army.archers" class="u-inline u-flex-grow-1" type="range" min="0" max="100"/>
+                    </div>
                 </div>
-            </div>
-            <div>
-                <h5>Defender</h5>
-                <label htmlFor="defSpearmen">Spearmen</label>
-                <input type="range" id="defSpearmen" name="defSpearmen" min="0" max="100"/>
-                <label htmlFor="atkArchers">Archers</label>
-                <input type="range" id="defArchers" name="defArchers" min="0" max="100"/>
-            </div>
+            </template>
         </div>
-        <button class="btn-primary">Run</button>
-        <div class="animated loading">
-            <pre><code>something happened abcdefg</code></pre>
+        <button class="btn-primary" x-bind:disabled="!$store.battle.isReady()" x-on:click="$store.battle.run()">Run</button>
+        <div x-bind:class="$store.battle.pending ? 'animated loading' : ''">
+            <pre x-show="!$store.battle.pending && '' != $store.battle.result"><code x-text="$store.battle.result"></code></pre>
         </div>
     </article>
 </div>
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('battle', {
+            armies: {
+                atk: {
+                    name: 'Attacker',
+                    spearmen: 0,
+                    archers: 0
+                },
+                def: {
+                    name: 'Defender',
+                    spearmen: 0,
+                    archers: 0
+                },
+            },
+            pending: false,
+            result: '',
+            run() {
+                this.pending = true
+                // TODO
+                this.pending = false
+                this.result = 'Something Happened'
+            },
+            isReady() {
+                let atkTotal = this.armies.atk.spearmen + this.armies.atk.archers
+                let defTotal = this.armies.def.spearmen + this.armies.def.archers
+                return !this.pending && 0 < atkTotal && 0 < defTotal
+            }
+        })
+    })
+</script>
 </body>
 </html>
