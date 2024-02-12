@@ -38,9 +38,11 @@
                 </div>
             </template>
         </div>
-        <button class="btn-primary" x-bind:disabled="!$store.battle.isReady()" x-on:click="$store.battle.run()">Run</button>
+        <button class="btn-primary" x-bind:disabled="!$store.battle.isReady()" x-on:click="await doBattle()">Run
+        </button>
         <div x-bind:class="$store.battle.pending ? 'animated loading' : ''">
-            <pre x-show="!$store.battle.pending && '' != $store.battle.result"><code x-text="$store.battle.result"></code></pre>
+            <pre x-show="!$store.battle.pending && '' != $store.battle.result"><code
+                x-text="$store.battle.result"></code></pre>
         </div>
     </article>
 </div>
@@ -61,12 +63,6 @@
             },
             pending: false,
             result: '',
-            run() {
-                this.pending = true
-                // TODO
-                this.pending = false
-                this.result = 'Something Happened'
-            },
             isReady() {
                 let atkTotal = this.armies.atk.spearmen + this.armies.atk.archers
                 let defTotal = this.armies.def.spearmen + this.armies.def.archers
@@ -74,6 +70,37 @@
             }
         })
     })
+
+    async function doBattle() {
+        Alpine.store('battle').pending = true
+
+        const armies = Alpine.store('battle').armies
+        const input = {
+            as: armies.atk.spearmen,
+            aa: armies.atk.archers,
+            ds: armies.def.spearmen,
+            da: armies.def.archers
+        }
+        const params = new URLSearchParams(input)
+        const response = await fetch('/api/battle?' + params)
+        const outcome = await response.json()
+        let surviving = {
+            as: input.as - outcome.atk.losses.spearmen,
+            aa: input.aa - outcome.atk.losses.archers,
+            ds: input.ds - outcome.def.losses.spearmen,
+            da: input.da - outcome.def.losses.archers
+        }
+
+        let result = 'Both armies lost all units'
+        if (surviving.as != 0 || surviving.aa != 0) {
+            result = `Attacker won with ${surviving.as} spearmen and ${surviving.aa} archers`
+        } else if (surviving.ds != 0 || surviving.da != 0) {
+            result = `Defender won with ${surviving.ds} spearmen and ${surviving.da} archers`
+        }
+        Alpine.store('battle').result = result
+
+        Alpine.store('battle').pending = false
+    }
 </script>
 </body>
 </html>

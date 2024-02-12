@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/aot"
 	"github.com/chyndman/tuktuk/handlers"
@@ -401,6 +402,27 @@ var slashAnkhtionBuy = tempest.Command{
 	},
 }
 
+func handleBattle(w http.ResponseWriter, req *http.Request) {
+	atkSpearmen := 0
+	atkArchers := 0
+	defSpearmen := 0
+	defArchers := 0
+	_, _ = fmt.Sscan(req.URL.Query().Get("as"), &atkSpearmen)
+	_, _ = fmt.Sscan(req.URL.Query().Get("aa"), &atkArchers)
+	_, _ = fmt.Sscan(req.URL.Query().Get("ds"), &defSpearmen)
+	_, _ = fmt.Sscan(req.URL.Query().Get("da"), &defArchers)
+	atkSpearmenLost, atkArchersLost, defSpearmenLost, defArchersLost := aot.Battle(
+		atkSpearmen, atkArchers, defSpearmen, defArchers)
+	w.Header().Set("Content-Type", "application/json")
+	resp := fmt.Sprintf("{"+
+		"\"atk\":{\"losses\":{\"spearmen\":%d,\"archers\":%d}},"+
+		"\"def\":{\"losses\":{\"spearmen\":%d,\"archers\":%d}}"+
+		"}",
+		atkSpearmenLost, atkArchersLost, defSpearmenLost, defArchersLost)
+	log.Println(resp)
+	w.Write([]byte(resp))
+}
+
 func main() {
 	publicKey := os.Getenv("TUKTUK_PUBLIC_KEY")
 	if 0 == len(publicKey) {
@@ -449,6 +471,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir("./public")))
+	mux.HandleFunc("/api/battle", handleBattle)
 
 	client := tempest.NewClient(tempest.ClientOptions{
 		PublicKey:    publicKey,
