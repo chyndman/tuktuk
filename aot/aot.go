@@ -11,14 +11,16 @@ const AnkhPoisonDieFaces = 6
 
 const IrradiateTukensCost int64 = 200
 
-const BanditSpearmanPrice = 140
-const BanditArcherPrice = 172
-const BanditSpearmanHP uint8 = 0x0E
-const BanditArcherHP uint8 = 0x0B
-const BanditSpearmanDmgToSpearman uint8 = 1
-const BanditSpearmanDmgToArcher uint8 = 1
-const BanditArcherDmgToSpearman uint8 = 2
-const BanditArcherDmgToArcher uint8 = 1
+const BanditSpearmanPrice = 80
+const BanditArcherPrice = 80
+const BanditSpearmanHP uint8 = 27
+const BanditArcherHP uint8 = 21
+const BanditSpearmanDmgToSpearman uint8 = 2
+const BanditSpearmanDmgToArcher uint8 = 2
+const BanditSpearmanDmgDefBonus uint8 = 1
+const BanditArcherDmgToSpearman uint8 = 4
+const BanditArcherDmgToArcher uint8 = 2
+const BanditArcherDmgAtkBonus uint8 = 1
 const CycleArmTimeoutMinutes = 10
 const AnkhtionCooldownHours = 2
 const AnkhtionDurationHours = 36
@@ -36,77 +38,77 @@ type Army struct {
 }
 
 func Battle(
-	xSpearmenIn int,
-	xArchersIn int,
-	ySpearmenIn int,
-	yArchersIn int) (
-	xSpearmenLost int,
-	xArchersLost int,
-	ySpearmenLost int,
-	yArchersLost int) {
-	xsBegin := 0
-	xsEnd := xSpearmenIn
-	xaBegin := xsEnd
-	xaEnd := xaBegin + xArchersIn
-	ysBegin := xaEnd
-	ysEnd := ysBegin + ySpearmenIn
-	yaBegin := ysEnd
-	yaEnd := yaBegin + yArchersIn
+	atkSprIn int,
+	atkArcIn int,
+	defSprIn int,
+	defArcIn int) (
+	atkSprLost int,
+	atkArcLost int,
+	defSprLost int,
+	defArcLost int) {
+	atkSprBegin := 0
+	atkSprEnd := atkSprIn
+	atkArcBegin := atkSprEnd
+	atkArcEnd := atkArcBegin + atkArcIn
+	defSprBegin := atkArcEnd
+	defSprEnd := defSprBegin + defSprIn
+	defArcBegin := defSprEnd
+	defArcEnd := defArcBegin + defArcIn
 
-	arr := make([]uint8, 2*yaEnd)
-	armyFull := arr[yaEnd:]
-	dmgFull := arr[:yaEnd]
+	arr := make([]uint8, 2*defArcEnd)
+	armyFull := arr[defArcEnd:]
+	dmgFull := arr[:defArcEnd]
 
-	x := Army{
-		Spearmen: armyFull[xsBegin:xsEnd],
-		Archers:  armyFull[xaBegin:xaEnd],
+	atk := Army{
+		Spearmen: armyFull[atkSprBegin:atkSprEnd],
+		Archers:  armyFull[atkArcBegin:atkArcEnd],
 	}
-	y := Army{
-		Spearmen: armyFull[ysBegin:ysEnd],
-		Archers:  armyFull[yaBegin:yaEnd],
+	def := Army{
+		Spearmen: armyFull[defSprBegin:defSprEnd],
+		Archers:  armyFull[defArcBegin:defArcEnd],
 	}
-	dmgToX := Army{
-		Spearmen: dmgFull[xsBegin:xsEnd],
-		Archers:  dmgFull[xaBegin:xaEnd],
+	dmgToAtk := Army{
+		Spearmen: dmgFull[atkSprBegin:atkSprEnd],
+		Archers:  dmgFull[atkArcBegin:atkArcEnd],
 	}
-	dmgToY := Army{
-		Spearmen: dmgFull[ysBegin:ysEnd],
-		Archers:  dmgFull[yaBegin:yaEnd],
-	}
-
-	for i := range x.Spearmen {
-		x.Spearmen[i] = BanditSpearmanHP
-	}
-	for i := range y.Spearmen {
-		y.Spearmen[i] = BanditSpearmanHP
-	}
-	for i := range x.Archers {
-		x.Archers[i] = BanditArcherHP
-	}
-	for i := range y.Archers {
-		y.Archers[i] = BanditArcherHP
+	dmgToDef := Army{
+		Spearmen: dmgFull[defSprBegin:defSprEnd],
+		Archers:  dmgFull[defArcBegin:defArcEnd],
 	}
 
-	for (xSpearmenLost < xSpearmenIn || xArchersLost < xArchersIn) && (ySpearmenLost < ySpearmenIn || yArchersLost < yArchersIn) {
-		calcDmg(&x, &y, &dmgToY)
-		calcDmg(&y, &x, &dmgToX)
+	for i := range atk.Spearmen {
+		atk.Spearmen[i] = BanditSpearmanHP
+	}
+	for i := range def.Spearmen {
+		def.Spearmen[i] = BanditSpearmanHP
+	}
+	for i := range atk.Archers {
+		atk.Archers[i] = BanditArcherHP
+	}
+	for i := range def.Archers {
+		def.Archers[i] = BanditArcherHP
+	}
 
-		xSpearmenKills, xArchersKills := applyDmg(&x, &dmgToX)
-		ySpearmenKills, yArchersKills := applyDmg(&y, &dmgToY)
+	for (atkSprLost < atkSprIn || atkArcLost < atkArcIn) && (defSprLost < defSprIn || defArcLost < defArcIn) {
+		calcDmg(&atk, &def, &dmgToDef, 0, BanditArcherDmgAtkBonus)
+		calcDmg(&def, &atk, &dmgToAtk, BanditSpearmanDmgDefBonus, 0)
 
-		xSpearmenLost += xSpearmenKills
-		xArchersLost += xArchersKills
-		ySpearmenLost += ySpearmenKills
-		yArchersLost += yArchersKills
+		atkSprKills, atkArcKills := applyDmg(&atk, &dmgToAtk)
+		defSprKills, defArcKills := applyDmg(&def, &dmgToDef)
+
+		atkSprLost += atkSprKills
+		atkArcLost += atkArcKills
+		defSprLost += defSprKills
+		defArcLost += defArcKills
 	}
 
 	return
 }
 
-func calcDmg(atk *Army, def *Army, dmg *Army) {
-	hitUndamagedSpearman := func(hp uint8) (hit bool) {
-		for i := range def.Spearmen {
-			if 0 < def.Spearmen[i] && 0 == dmg.Spearmen[i] {
+func calcDmg(tx *Army, rx *Army, dmg *Army, sprBonus uint8, arcBonus uint8) {
+	hitUndamagedInnerSpearman := func(hp uint8) (hit bool) {
+		for i := range rx.Spearmen {
+			if 0 < rx.Spearmen[i] && 0 == dmg.Spearmen[i] {
 				dmg.Spearmen[i] = hp
 				hit = true
 				break
@@ -114,76 +116,68 @@ func calcDmg(atk *Army, def *Army, dmg *Army) {
 		}
 		return
 	}
-
-	hitMinSpearman := func(hp uint8) (hit bool) {
-		var hpMin uint8 = 0xFF
-		target := -1
-		for i := range def.Spearmen {
-			if 0 < def.Spearmen[i] && dmg.Spearmen[i] < def.Spearmen[i] && (-1 == target || dmg.Spearmen[target] < hpMin) {
-				target = i
-				hpMin = dmg.Spearmen[i]
+	hitInnerArcher := func(hp uint8) (hit bool) {
+		for i := range rx.Archers {
+			if 0 < rx.Archers[i] && dmg.Archers[i] < rx.Archers[i] {
+				dmg.Archers[i] += hp
+				hit = true
+				break
 			}
-		}
-		if 0 <= target {
-			hit = true
-			dmg.Spearmen[target] += hp
 		}
 		return
 	}
-
-	hitMinArcher := func(hp uint8) (hit bool) {
-		var hpMin uint8 = 0xFF
-		target := -1
-		for i := range def.Archers {
-			if 0 < def.Archers[i] && dmg.Archers[i] < def.Archers[i] && (-1 == target || dmg.Archers[target] < hpMin) {
-				target = i
-				hpMin = dmg.Archers[i]
+	hitOuterSpearman := func(hp uint8) (hit bool) {
+		for i := len(rx.Spearmen) - 1; i >= 0; i-- {
+			if 0 < rx.Spearmen[i] && dmg.Spearmen[i] < rx.Spearmen[i] {
+				dmg.Spearmen[i] += hp
+				hit = true
+				break
 			}
-		}
-		if 0 <= target {
-			hit = true
-			dmg.Archers[target] += hp
 		}
 		return
 	}
-
-	for range atk.Spearmen {
-		if hitUndamagedSpearman(BanditSpearmanDmgToSpearman) {
-			continue
+	hitOuterArcher := func(hp uint8) (hit bool) {
+		for i := len(rx.Archers) - 1; i >= 0; i-- {
+			if 0 < rx.Archers[i] && dmg.Archers[i] < rx.Archers[i] {
+				dmg.Archers[i] += hp
+				hit = true
+				break
+			}
 		}
-		if hitMinArcher(BanditSpearmanDmgToArcher) {
-			continue
-		}
-		hitMinSpearman(BanditSpearmanDmgToSpearman)
+		return
 	}
-
-	for range atk.Archers {
-		if hitMinSpearman(BanditArcherDmgToSpearman) {
-			continue
-		}
-		hitMinArcher(BanditArcherDmgToArcher)
+	for i := range tx.Spearmen {
+		_ = 0 == tx.Spearmen[i] ||
+			hitUndamagedInnerSpearman(BanditSpearmanDmgToSpearman+sprBonus) ||
+			hitOuterSpearman(BanditSpearmanDmgToSpearman+sprBonus) ||
+			hitOuterArcher(BanditSpearmanDmgToArcher+sprBonus)
+	}
+	for i := range tx.Archers {
+		_ = 0 == tx.Archers[i] ||
+			hitOuterSpearman(BanditArcherDmgToSpearman+arcBonus) ||
+			hitInnerArcher(BanditArcherDmgToArcher+arcBonus)
 	}
 }
 
-func applyDmg(def *Army, dmg *Army) (spearmanKills int, archerKills int) {
-	for i := 0; i < len(def.Spearmen); i++ {
-		if 0 < dmg.Spearmen[i] {
-			if dmg.Spearmen[i] >= def.Spearmen[i] {
+func applyDmg(rx *Army, dmg *Army) (spearmanKills int, archerKills int) {
+	for i := 0; i < len(rx.Spearmen); i++ {
+		if 0 < rx.Spearmen[i] {
+			if dmg.Spearmen[i] >= rx.Spearmen[i] {
 				spearmanKills++
-				def.Spearmen[i] = 0
+				rx.Spearmen[i] = 0
 			} else {
-				def.Spearmen[i] -= dmg.Spearmen[i]
+				rx.Spearmen[i] -= dmg.Spearmen[i]
 			}
 			dmg.Spearmen[i] = 0
 		}
 	}
-	for i := 0; i < len(def.Archers); i++ {
+	for i := 0; i < len(rx.Archers); i++ {
 		if 0 < dmg.Archers[i] {
-			if dmg.Archers[i] >= def.Archers[i] {
+			if dmg.Archers[i] >= rx.Archers[i] {
 				archerKills++
-				def.Archers[i] = 0
+				rx.Archers[i] = 0
 			} else {
-				def.Archers[i] -= dmg.Archers[i]
+				rx.Archers[i] -= dmg.Archers[i]
 			}
 			dmg.Archers[i] = 0
 		}
