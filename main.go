@@ -469,14 +469,9 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir("./public")))
-	mux.HandleFunc("/api/battle", handleBattle)
-
 	client := tempest.NewClient(tempest.ClientOptions{
 		PublicKey:    publicKey,
-		Rest:         tempest.NewRest(botToken),
-		HTTPServeMux: mux,
+		Rest:         tempest.NewRestClient(botToken),
 	})
 
 	_ = client.RegisterCommand(slashRoll)
@@ -508,7 +503,8 @@ func main() {
 	}
 
 	log.Printf("Listening")
-	err = client.ListenAndServe("/api/interactions", addr)
+	http.HandleFunc("POST /api/interactions", client.HandleDiscordRequest)
+	err = http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Printf("Listening failed: %s", err)
 	}
