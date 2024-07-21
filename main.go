@@ -214,7 +214,7 @@ func main() {
 		"DATABASE_URL",
 	}
 
-	for e := range envs {
+	for _, e := range envs {
 		log.Printf("%s -> \"%s\"", e, os.Getenv(e))
 	}
 
