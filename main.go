@@ -175,6 +175,7 @@ func main() {
 	if 0 == len(botToken) {
 		panic("Missing TUKTUK_BOT_TOKEN")
 	}
+
 	portNum := 80
 	portArgStr := os.Getenv("PORT")
 	if 0 < len(portArgStr) {
@@ -184,29 +185,14 @@ func main() {
 			portNum = portArgNum
 		}
 	}
-
-	pgCheckEnvs := []string{
-		"PGHOST",
-		"PGPORT",
-		"PGDATABASE",
-		"PGUSER",
-		"PGPASSWORD",
-	}
-
-	for _, env := range pgCheckEnvs {
-		if 0 == len(os.Getenv(env)) {
-			panic("No value for " + env)
-		}
-	}
-
 	addr := "0.0.0.0:" + strconv.Itoa(portNum)
 
-	dbConf, err := pgxpool.ParseConfig("")
-	if err != nil {
-		panic(err)
+	dbUrl := os.Getenv("DATABASE_URL")
+	if 0 == len(dbUrl) {
+		panic("Missing DATABASE_URL")
 	}
 
-	dbPool, err = pgxpool.NewWithConfig(context.Background(), dbConf)
+	dbPool, err := pgxpool.New(context.Background(), dbUrl)
 	if err != nil {
 		panic(err)
 	}
