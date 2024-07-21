@@ -203,6 +203,21 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	envs := []string{
+		"PGDATABASE",
+		"PGHOST",
+		"PGPASSWORD",
+		"PGPORT",
+		"PGSSLMODE",
+		"PGSSLROOTCERT",
+		"PGUSER",
+		"DATABASE_URL",
+	}
+
+	for e := range envs {
+		log.Printf("%s -> \"%s\"", e, os.Getenv(e))
+	}
+
 	client := tempest.NewClient(tempest.ClientOptions{
 		PublicKey: publicKey,
 		Rest:      tempest.NewRestClient(botToken),
