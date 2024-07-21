@@ -10,8 +10,6 @@ import (
 
 const DefaultErrorMsg = "💥 Tuk-Tuk hit a pothole."
 const NoWalletErrorMsg = "⚠️ You have no Tukens. Use `tuken mine` first."
-const NoPlayerErrorMsg = "⚠️ You haven't yet joined the ongoing game. Use `/aot join` first."
-const NoAnkhtionErrorMsg = "⚠️ No Ankhtion scheduled."
 
 type Reply struct {
 	PublicMsg  string
