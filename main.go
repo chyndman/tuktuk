@@ -192,7 +192,12 @@ func main() {
 		panic("Missing DATABASE_URL")
 	}
 
-	dbPool, err := pgxpool.New(context.Background(), dbUrl)
+	dbCfg, err := pgxpool.ParseConfig(dbUrl)
+	if err != nil {
+		panic(err)
+	}
+
+	dbPool, err := pgxpool.NewWithConfig(context.Background(), dbCfg)
 	if err != nil {
 		panic(err)
 	}
