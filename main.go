@@ -197,7 +197,7 @@ func main() {
 		panic(err)
 	}
 
-	dbPool, err := pgxpool.NewWithConfig(context.Background(), dbCfg)
+	dbPool, err = pgxpool.NewWithConfig(context.Background(), dbCfg)
 	if err != nil {
 		panic(err)
 	}
