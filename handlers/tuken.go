@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-const TukenMineMean int64 = 1200
-const TukenMineStdDev int = 80
+const TukenMineMean int64 = 512
+const TukenMineStdDev int = 32
 const TukenMineCooldownHours = 4
 
 type TukenMine struct{}
