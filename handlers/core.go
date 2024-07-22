@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	tempest "github.com/Amatsagu/Tempest"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -22,7 +23,7 @@ type Handler interface {
 }
 
 type DBHandler interface {
-	Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error)
+	Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (re Reply, err error)
 }
 
 func getGuildUserKey(itx *tempest.CommandInteraction) (gid int64, uid int64) {
@@ -36,9 +37,7 @@ func finishHandler(re Reply, err error, itx *tempest.CommandInteraction) {
 
 	if err != nil {
 		log.Print(err)
-	}
-
-	if 0 < len(re.PublicMsg) {
+	} else if 0 < len(re.PublicMsg) {
 		reply = re.PublicMsg
 		replyEphemeral = false
 		followUp = re.PrivateMsg
@@ -53,13 +52,22 @@ func finishHandler(re Reply, err error, itx *tempest.CommandInteraction) {
 }
 
 func doDBHandler(h DBHandler, itx *tempest.CommandInteraction, dbPool *pgxpool.Pool) {
+	gid, uid := getGuildUserKey(itx)
+
 	ctx := context.Background()
 	db, err := dbPool.Acquire(ctx)
 	var re Reply
 
 	if err == nil {
-		gid, uid := getGuildUserKey(itx)
-		re, err = h.Handle(ctx, db, gid, uid)
+		tx, err := db.Begin(ctx)
+		if err == nil {
+			re, err = h.Handle(ctx, tx, gid, uid)
+			if err == nil {
+				err = tx.Commit(ctx)
+			} else {
+				_ = tx.Rollback(ctx)
+			}
+		}
 		db.Release()
 	}
 

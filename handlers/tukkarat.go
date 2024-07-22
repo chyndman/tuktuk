@@ -25,8 +25,8 @@ type Tukkarat struct {
 	Outcome TukkaratOutcome
 }
 
-func (h Tukkarat) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
-	wallet, err := models.WalletByGuildUser(ctx, db, gid, uid)
+func (h Tukkarat) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (re Reply, err error) {
+	wallet, err := models.WalletByGuildUser(ctx, tx, gid, uid)
 	if err == nil {
 		if wallet.Tukens < h.Tukens {
 			re.PrivateMsg = fmt.Sprintf(
@@ -44,7 +44,7 @@ func (h Tukkarat) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid i
 				diffTukens = 8 * h.Tukens
 			}
 
-			err = wallet.UpdateTukens(ctx, db, wallet.Tukens+diffTukens)
+			err = wallet.UpdateTukens(ctx, tx, wallet.Tukens+diffTukens)
 			if err == nil {
 				outcomeStr := "won"
 				absDiffTukens := diffTukens

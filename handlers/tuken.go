@@ -18,7 +18,7 @@ const TukenMineCooldownHours = 4
 
 type TukenMine struct{}
 
-func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
+func (h TukenMine) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (re Reply, err error) {
 	minedTukens := TukenMineMean + int64(rand.NormFloat64()*float64(TukenMineStdDev))
 	now := time.Now()
 	didMine := false
@@ -26,7 +26,7 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 	havePlayerStr := ""
 
 	var wallet models.Wallet
-	wallet, err = models.WalletByGuildUser(ctx, db, gid, uid)
+	wallet, err = models.WalletByGuildUser(ctx, tx, gid, uid)
 	if err == nil {
 		var timeEarliestMine time.Time
 		if !wallet.TimeLastMined.IsZero() {
@@ -38,8 +38,8 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 				"⏱️ Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
 		} else {
 			err = wallet.UpdateTukensMine(
-				context.Background(),
-				db,
+				ctx,
+				tx,
 				wallet.Tukens+minedTukens,
 				now)
 			if err == nil {
@@ -51,7 +51,7 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 		wallet.UserID = uid
 		wallet.Tukens = minedTukens
 		wallet.TimeLastMined = now
-		err = wallet.Insert(context.Background(), db)
+		err = wallet.Insert(ctx, tx)
 		if err == nil {
 			didMine = true
 		}

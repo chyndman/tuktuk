@@ -3,7 +3,6 @@ package models
 import (
 	"context"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
 
@@ -14,9 +13,9 @@ type Wallet struct {
 	TimeLastMined time.Time
 }
 
-func WalletByGuildUser(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (w Wallet, err error) {
+func WalletByGuildUser(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (w Wallet, err error) {
 	var rows pgx.Rows
-	rows, err = db.Query(
+	rows, err = tx.Query(
 		ctx,
 		"SELECT * FROM wallet WHERE guild_id = $1 AND user_id = $2",
 		gid, uid)
@@ -26,9 +25,9 @@ func WalletByGuildUser(ctx context.Context, db *pgxpool.Conn, gid int64, uid int
 	return
 }
 
-func WalletsByGuild(ctx context.Context, db *pgxpool.Conn, gid int64) (ws []Wallet, err error) {
+func WalletsByGuild(ctx context.Context, tx pgx.Tx, gid int64) (ws []Wallet, err error) {
 	var rows pgx.Rows
-	rows, _ = db.Query(
+	rows, _ = tx.Query(
 		ctx,
 		"SELECT * FROM wallet WHERE guild_id = $1",
 		gid)
@@ -36,8 +35,8 @@ func WalletsByGuild(ctx context.Context, db *pgxpool.Conn, gid int64) (ws []Wall
 	return
 }
 
-func (w *Wallet) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
-	_, err = db.Exec(
+func (w *Wallet) Insert(ctx context.Context, tx pgx.Tx) (err error) {
+	_, err = tx.Exec(
 		ctx,
 		"INSERT INTO wallet(guild_id, user_id, tukens, time_last_mined) "+
 			"VALUES($1, $2, $3, $4)",
@@ -45,8 +44,8 @@ func (w *Wallet) Insert(ctx context.Context, db *pgxpool.Conn) (err error) {
 	return
 }
 
-func (w *Wallet) UpdateTukens(ctx context.Context, db *pgxpool.Conn, tukens int64) (err error) {
-	_, err = db.Exec(
+func (w *Wallet) UpdateTukens(ctx context.Context, tx pgx.Tx, tukens int64) (err error) {
+	_, err = tx.Exec(
 		ctx,
 		"UPDATE wallet SET tukens = $3 "+
 			"WHERE guild_id = $1 AND user_id = $2",
@@ -57,8 +56,8 @@ func (w *Wallet) UpdateTukens(ctx context.Context, db *pgxpool.Conn, tukens int6
 	return
 }
 
-func (w *Wallet) UpdateTukensMine(ctx context.Context, db *pgxpool.Conn, tukens int64, timeLastMined time.Time) (err error) {
-	_, err = db.Exec(
+func (w *Wallet) UpdateTukensMine(ctx context.Context, tx pgx.Tx, tukens int64, timeLastMined time.Time) (err error) {
+	_, err = tx.Exec(
 		ctx,
 		"UPDATE wallet SET tukens = $3, time_last_mined = $4 "+
 			"WHERE guild_id = $1 AND user_id = $2",
