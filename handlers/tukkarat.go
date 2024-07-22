@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/chyndman/tuktuk/playingcard"
 	"github.com/jackc/pgx/v5"
@@ -19,12 +20,12 @@ const (
 	TukkaratOutcomeTie
 )
 
-type TukkaratSolo struct {
+type Tukkarat struct {
 	Tukens  int64
 	Outcome TukkaratOutcome
 }
 
-func (h TukkaratSolo) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
+func (h Tukkarat) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid int64) (re Reply, err error) {
 	wallet, err := models.WalletByGuildUser(ctx, db, gid, uid)
 	if err == nil {
 		if wallet.Tukens < h.Tukens {
@@ -155,4 +156,56 @@ func formatTukkaratCodeBlock(player BaccaratHand, banker BaccaratHand) string {
 	bankerLine := fmtLine("Drv. ", bankerRole, banker)
 
 	return fmt.Sprintf("```\n%s\n%s\n```", playerLine, bankerLine)
+}
+
+func NewTukkarat(dbPool *pgxpool.Pool) tempest.Command {
+	return tempest.Command{
+		Name:        "tukkarat",
+		Description: "Play a game that definitely is the same as baccarat",
+		Options: []tempest.CommandOption{
+			{
+				Name:        "tukens",
+				Description: "amount of tukens to bet",
+				Type:        tempest.INTEGER_OPTION_TYPE,
+				Required:    true,
+				MinValue:    20,
+			},
+			{
+				Name:        "hand",
+				Description: "which hand will win the round?",
+				Type:        tempest.STRING_OPTION_TYPE,
+				Required:    true,
+				Choices: []tempest.Choice{
+					{
+						Name:  "Passenger (pays 1:1)",
+						Value: "hand_passenger",
+					},
+					{
+						Name:  "Driver (pays 0.95:1)",
+						Value: "hand_driver",
+					},
+					{
+						Name:  "Tie (pays 8:1)",
+						Value: "hand_tie",
+					},
+				},
+			},
+		},
+		SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+			var h Tukkarat
+			tukensOpt, _ := itx.GetOptionValue("tukens")
+			handOpt, _ := itx.GetOptionValue("hand")
+			h.Tukens = int64(tukensOpt.(float64))
+			betHand := handOpt.(string)
+			switch betHand {
+			case "hand_passenger":
+				h.Outcome = TukkaratOutcomePassenger
+			case "hand_driver":
+				h.Outcome = TukkaratOutcomeDriver
+			case "hand_tie":
+				h.Outcome = TukkaratOutcomeTie
+			}
+			doDBHandler(h, itx, dbPool)
+		},
+	}
 }

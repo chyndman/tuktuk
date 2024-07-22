@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,4 +65,14 @@ func (h TukenMine) Handle(ctx context.Context, db *pgxpool.Conn, gid int64, uid 
 	}
 
 	return
+}
+
+func NewTukenMine(dbPool *pgxpool.Pool) tempest.Command {
+	return tempest.Command{
+		Name:        "mine",
+		Description: "Mine for Tukens",
+		SlashCommandHandler: func(itx *tempest.CommandInteraction) {
+			doDBHandler(TukenMine{}, itx, dbPool)
+		},
+	}
 }
