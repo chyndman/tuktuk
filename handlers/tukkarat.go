@@ -37,7 +37,7 @@ func (h Tukkarat) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (
 			payout := baccarat.GetPayout(outcome, int(h.Tukens))
 			diffTukens := 0 - h.Tukens
 			if h.Outcome == outcome {
-				diffTukens += int64(payout)
+				diffTukens = int64(payout)
 			}
 
 			err = wallet.UpdateTukens(ctx, tx, wallet.Tukens+diffTukens)
