@@ -5,11 +5,10 @@ import (
 	"errors"
 	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
+	"github.com/chyndman/tuktuk/baccarat"
 	"github.com/chyndman/tuktuk/models"
-	"github.com/chyndman/tuktuk/playingcard"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"math/rand"
 )
 
 type TukkaratOutcome int
@@ -22,7 +21,7 @@ const (
 
 type Tukkarat struct {
 	Tukens  int64
-	Outcome TukkaratOutcome
+	Outcome baccarat.Outcome
 }
 
 func (h Tukkarat) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (re Reply, err error) {
@@ -34,14 +33,11 @@ func (h Tukkarat) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (
 				tukensDisplay(h.Tukens),
 				tukensDisplay(wallet.Tukens))
 		} else {
-			player, banker := playBaccarat()
+			player, banker, outcome := baccarat.PlayCoup(baccarat.RandomShoe())
+			payout := baccarat.GetPayout(outcome, int(h.Tukens))
 			diffTukens := 0 - h.Tukens
-			if player.Score > banker.Score && TukkaratOutcomePassenger == h.Outcome {
-				diffTukens = h.Tukens
-			} else if banker.Score > player.Score && TukkaratOutcomeDriver == h.Outcome {
-				diffTukens = h.Tukens - (h.Tukens / 20)
-			} else if banker.Score == player.Score && TukkaratOutcomeTie == h.Outcome {
-				diffTukens = 8 * h.Tukens
+			if h.Outcome == outcome {
+				diffTukens += int64(payout)
 			}
 
 			err = wallet.UpdateTukens(ctx, tx, wallet.Tukens+diffTukens)
@@ -72,71 +68,8 @@ func (h Tukkarat) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (
 	return
 }
 
-func newShoe() (shoe []playingcard.PlayingCard) {
-	const deckCount = 6
-	const cardCount = 52 * deckCount
-	shoe = make([]playingcard.PlayingCard, cardCount)
-	p := rand.Perm(cardCount)
-	for i := 0; i < cardCount; i++ {
-		cardIndex := p[i] % 52
-		shoe[i].Suit = playingcard.Suit(int(playingcard.SuitSpade) + (cardIndex / 13))
-		shoe[i].Rank = playingcard.Rank(int(playingcard.RankAce) + (cardIndex % 13))
-	}
-	return
-}
-
-func baccaratCardValue(card playingcard.PlayingCard) (value int) {
-	value = int(card.Rank)
-	if value >= 10 {
-		value = 0
-	}
-	return
-}
-
-type BaccaratHand struct {
-	Cards []playingcard.PlayingCard
-	Score int
-}
-
-func (hand *BaccaratHand) Deal(card playingcard.PlayingCard) {
-	hand.Cards = append(hand.Cards, card)
-	hand.Score = (hand.Score + baccaratCardValue(card)) % 10
-}
-
-func playBaccarat() (player BaccaratHand, banker BaccaratHand) {
-	shoe := newShoe()
-	cardCount := 0
-	dealTo := func(hand *BaccaratHand) {
-		cardCount++
-		hand.Deal(shoe[len(shoe)-cardCount])
-	}
-
-	dealTo(&player)
-	dealTo(&banker)
-	dealTo(&player)
-	dealTo(&banker)
-
-	if 8 > player.Score && 8 > banker.Score {
-		if 5 >= player.Score {
-			dealTo(&player)
-			playerThirdVal := baccaratCardValue(player.Cards[2])
-			bankerHitMaxes := []int{
-				3, 3, 4, 4, 5, 5, 6, 6, 2, 3,
-			}
-			bankerHitMax := bankerHitMaxes[playerThirdVal]
-			if bankerHitMax >= banker.Score {
-				dealTo(&banker)
-			}
-		} else if 5 >= banker.Score {
-			dealTo(&banker)
-		}
-	}
-
-	return
-}
-
-func formatTukkaratCodeBlock(player BaccaratHand, banker BaccaratHand) string {
-	fmtLine := func(name string, role string, hand BaccaratHand) (line string) {
+func formatTukkaratCodeBlock(player baccarat.Hand, banker baccarat.Hand) string {
+	fmtLine := func(name string, role string, hand baccarat.Hand) (line string) {
 		line = fmt.Sprintf("%s %s %d |", name, role, hand.Score)
 		for _, card := range hand.Cards {
 			line += " " + card.String()
@@ -199,11 +132,11 @@ func NewTukkarat(dbPool *pgxpool.Pool) tempest.Command {
 			betHand := handOpt.(string)
 			switch betHand {
 			case "hand_passenger":
-				h.Outcome = TukkaratOutcomePassenger
+				h.Outcome = baccarat.OutcomePlayerWin
 			case "hand_driver":
-				h.Outcome = TukkaratOutcomeDriver
+				h.Outcome = baccarat.OutcomeBankerWin
 			case "hand_tie":
-				h.Outcome = TukkaratOutcomeTie
+				h.Outcome = baccarat.OutcomeTie
 			}
 			doDBHandler(h, itx, dbPool)
 		},
