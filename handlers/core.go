@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	tempest "github.com/Amatsagu/Tempest"
-	"github.com/jackc/pgx/v5"
+	"github.com/chyndman/tuktuk/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -23,7 +23,7 @@ type Handler interface {
 }
 
 type DBHandler interface {
-	Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (re Reply, err error)
+	Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error)
 }
 
 func getGuildUserKey(itx *tempest.CommandInteraction) (gid int64, uid int64) {
@@ -53,15 +53,19 @@ func finishHandler(re Reply, err error, itx *tempest.CommandInteraction) {
 
 func doDBHandler(h DBHandler, itx *tempest.CommandInteraction, dbPool *pgxpool.Pool) {
 	gid, uid := getGuildUserKey(itx)
+	var re Reply
 
 	ctx := context.Background()
 	db, err := dbPool.Acquire(ctx)
-	var re Reply
 
 	if err == nil {
 		tx, err := db.Begin(ctx)
 		if err == nil {
-			re, err = h.Handle(ctx, tx, gid, uid)
+			pg := models.PostgreSQLBroker{
+				Context: ctx,
+				Tx:      tx,
+			}
+			re, err = h.Handle(&pg, gid, uid)
 			if err == nil {
 				err = tx.Commit(ctx)
 			} else {

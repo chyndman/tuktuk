@@ -1,31 +1,24 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/baccarat"
 	"github.com/chyndman/tuktuk/models"
+	"github.com/chyndman/tuktuk/playingcard"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-)
-
-type TukkaratOutcome int
-
-const (
-	TukkaratOutcomePassenger TukkaratOutcome = iota
-	TukkaratOutcomeDriver
-	TukkaratOutcomeTie
 )
 
 type Tukkarat struct {
 	Tukens  int64
 	Outcome baccarat.Outcome
+	Shoe    []playingcard.PlayingCard
 }
 
-func (h Tukkarat) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (re Reply, err error) {
-	wallet, err := models.WalletByGuildUser(ctx, tx, gid, uid)
+func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
+	wallet, err := db.SelectWalletByGuildUser(gid, uid)
 	if err == nil {
 		if wallet.Tukens < h.Tukens {
 			re.PrivateMsg = fmt.Sprintf(
@@ -33,14 +26,15 @@ func (h Tukkarat) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (
 				tukensDisplay(h.Tukens),
 				tukensDisplay(wallet.Tukens))
 		} else {
-			player, banker, outcome := baccarat.PlayCoup(baccarat.RandomShoe())
+			player, banker, outcome := baccarat.PlayCoup(h.Shoe)
 			payout := baccarat.GetPayout(outcome, int(h.Tukens))
 			diffTukens := 0 - h.Tukens
 			if h.Outcome == outcome {
 				diffTukens = int64(payout)
 			}
 
-			err = wallet.UpdateTukens(ctx, tx, wallet.Tukens+diffTukens)
+			wallet.Tukens += diffTukens
+			err = db.UpdateWallet(wallet)
 			if err == nil {
 				outcomeStr := "won"
 				absDiffTukens := diffTukens
@@ -138,6 +132,7 @@ func NewTukkarat(dbPool *pgxpool.Pool) tempest.Command {
 			case "hand_tie":
 				h.Outcome = baccarat.OutcomeTie
 			}
+			h.Shoe = baccarat.RandomShoe()
 			doDBHandler(h, itx, dbPool)
 		},
 	}

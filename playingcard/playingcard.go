@@ -1,6 +1,8 @@
 package playingcard
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Suit int
 
@@ -30,8 +32,8 @@ const (
 )
 
 type PlayingCard struct {
-	Suit Suit
-	Rank Rank
+	Suit
+	Rank
 }
 
 func (card PlayingCard) String() string {
@@ -53,4 +55,15 @@ func (card PlayingCard) String() string {
 	}
 
 	return fmt.Sprintf("[%s%s]", rank, suit)
+}
+
+func PlayingCardToInt16(card PlayingCard) int16 {
+	return (int16(card.Suit) << 8) | int16(card.Rank)
+}
+
+func Int16ToPlayingCard(n int16) PlayingCard {
+	return PlayingCard{
+		Suit: Suit(n >> 8),
+		Rank: Rank(n & 0xFF),
+	}
 }

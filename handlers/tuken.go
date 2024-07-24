@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
@@ -18,7 +17,7 @@ const TukenMineCooldownHours = 4
 
 type TukenMine struct{}
 
-func (h TukenMine) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) (re Reply, err error) {
+func (h TukenMine) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
 	minedTukens := TukenMineMean + int64(rand.NormFloat64()*float64(TukenMineStdDev))
 	now := time.Now()
 	didMine := false
@@ -26,7 +25,7 @@ func (h TukenMine) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) 
 	havePlayerStr := ""
 
 	var wallet models.Wallet
-	wallet, err = models.WalletByGuildUser(ctx, tx, gid, uid)
+	wallet, err = db.SelectWalletByGuildUser(gid, uid)
 	if err == nil {
 		var timeEarliestMine time.Time
 		if !wallet.TimeLastMined.IsZero() {
@@ -37,11 +36,9 @@ func (h TukenMine) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) 
 			re.PrivateMsg = fmt.Sprintf(
 				"⏱️ Mining on cooldown (%s). You have %s.", wait, tukensDisplay(wallet.Tukens))
 		} else {
-			err = wallet.UpdateTukensMine(
-				ctx,
-				tx,
-				wallet.Tukens+minedTukens,
-				now)
+			wallet.Tukens += minedTukens
+			wallet.TimeLastMined = now
+			err = db.UpdateWallet(wallet)
 			if err == nil {
 				didMine = true
 			}
@@ -51,7 +48,7 @@ func (h TukenMine) Handle(ctx context.Context, tx pgx.Tx, gid int64, uid int64) 
 		wallet.UserID = uid
 		wallet.Tukens = minedTukens
 		wallet.TimeLastMined = now
-		err = wallet.Insert(ctx, tx)
+		err = db.InsertWallet(wallet)
 		if err == nil {
 			didMine = true
 		}
