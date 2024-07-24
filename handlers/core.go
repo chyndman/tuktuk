@@ -4,6 +4,7 @@ import (
 	"context"
 	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/models"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -59,7 +60,8 @@ func doDBHandler(h DBHandler, itx *tempest.CommandInteraction, dbPool *pgxpool.P
 	db, err := dbPool.Acquire(ctx)
 
 	if err == nil {
-		tx, err := db.Begin(ctx)
+		var tx pgx.Tx
+		tx, err = db.Begin(ctx)
 		if err == nil {
 			pg := models.PostgreSQLBroker{
 				Context: ctx,

@@ -48,6 +48,6 @@ func (pg *PostgreSQLBroker) UpdateWallet(w Wallet) (err error) {
 		pg.Context,
 		"UPDATE wallet SET tukens = $3, time_last_mined = $4 "+
 			"WHERE guild_id = $1 AND user_id = $2",
-		w.GuildID, w.UserID, w.Tukens, w.Tukens)
+		w.GuildID, w.UserID, w.Tukens, w.TimeLastMined)
 	return
 }
