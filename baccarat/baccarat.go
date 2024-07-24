@@ -47,8 +47,8 @@ func (hand *Hand) Deal(card playingcard.PlayingCard) {
 func PlayCoup(shoe []playingcard.PlayingCard) (player Hand, banker Hand, outcome Outcome) {
 	cardCount := 0
 	dealTo := func(hand *Hand) {
-		cardCount++
 		hand.Deal(shoe[cardCount])
+		cardCount++
 	}
 
 	dealTo(&player)
