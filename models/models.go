@@ -11,6 +11,7 @@ type DBBroker interface {
 	InsertWallet(w Wallet) error
 	UpdateWallet(w Wallet) error
 
+	SelectTukopolyCardLicensesByGuildCard(gid int64, cid int16) (TukopolyCardLicense, error)
 	SelectTukopolyCardLicensesByGuild(gid int64) ([]TukopolyCardLicense, error)
 	InsertTukopolyCardLicense(l TukopolyCardLicense) error
 }

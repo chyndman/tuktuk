@@ -10,6 +10,18 @@ type TukopolyCardLicense struct {
 	UserID  int64
 }
 
+func (pg *PostgreSQLBroker) SelectTukopolyCardLicensesByGuildCard(gid int64, cid int16) (l TukopolyCardLicense, err error) {
+	var rows pgx.Rows
+	rows, err = pg.Tx.Query(
+		pg.Context,
+		"SELECT * FROM tukopoly_card_license WHERE guild_id = $1 AND card_id = $2",
+		gid, cid)
+	if err == nil {
+		l, err = pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[TukopolyCardLicense])
+	}
+	return
+}
+
 func (pg *PostgreSQLBroker) SelectTukopolyCardLicensesByGuild(gid int64) (ls []TukopolyCardLicense, err error) {
 	var rows pgx.Rows
 	rows, _ = pg.Tx.Query(

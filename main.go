@@ -62,6 +62,7 @@ func main() {
 	}
 	_ = client.RegisterCommand(slashTukopoly)
 	_ = client.RegisterSubCommand(handlers.NewTukopolyViewLicenses(dbPool), slashTukopoly.Name)
+	_ = client.RegisterSubCommand(handlers.NewTukopolyBuyLicense(dbPool), slashTukopoly.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
