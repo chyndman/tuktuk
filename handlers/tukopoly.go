@@ -72,8 +72,8 @@ func (h TukopolyBuyLicense) Handle(db models.DBBroker, gid int64, uid int64) (re
 			cost := int64(tukopoly.GetLicensePrice(h.LicensedCard))
 			if wallet.Tukens < cost {
 				re.PrivateMsg =
-					fmt.Sprintf("⚠️ Cannot purchase `%s` for %d. You have %s.",
-						h.LicensedCard.String(), cost, tukensDisplay(wallet.Tukens))
+					fmt.Sprintf("⚠️ Cannot purchase `%s` for %s. You have %s.",
+						h.LicensedCard.String(), tukensDisplay(cost), tukensDisplay(wallet.Tukens))
 			} else {
 				wallet.Tukens -= cost
 				err = db.UpdateWallet(wallet)
@@ -85,8 +85,8 @@ func (h TukopolyBuyLicense) Handle(db models.DBBroker, gid int64, uid int64) (re
 					})
 					if err == nil {
 						re.PublicMsg =
-							fmt.Sprintf("%s has bought the license for `%s`.",
-								mention(uid), h.LicensedCard.String())
+							fmt.Sprintf("%s bought the `%s` license for %s.",
+								mention(uid), h.LicensedCard.String(), tukensDisplay(cost))
 						re.PrivateMsg =
 							fmt.Sprintf("You now have %s.", tukensDisplay(wallet.Tukens))
 					}
