@@ -5,7 +5,20 @@ import (
 	"testing"
 )
 
-var playersState1 map[int64]Player = map[int64]Player{
+type MockPlayer struct {
+	LicensedCards []playingcard.PlayingCard
+}
+
+func (mp MockPlayer) IsLicensee(card playingcard.PlayingCard) bool {
+	for _, c := range mp.LicensedCards {
+		if c == card {
+			return true
+		}
+	}
+	return false
+}
+
+var playersState1 map[int64]MockPlayer = map[int64]MockPlayer{
 	1: {
 		LicensedCards: []playingcard.PlayingCard{
 			{
@@ -62,5 +75,7 @@ func TestBasic(t *testing.T) {
 	}
 	royalties := GetRoyalties(playersState1, coup)
 
-	t.Log(royalties)
+	t.Log(royalties[1])
+	t.Log(royalties[2])
+	t.Log(royalties[3])
 }

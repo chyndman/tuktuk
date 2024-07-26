@@ -8,12 +8,11 @@ import (
 const RoyaltyBasePerCardOfRank = 4
 const RoyaltyFacePercentPerCardOfSuit = 0.02
 
-type Player struct {
-	LicensedCards []playingcard.PlayingCard
+type Player interface {
+	IsLicensee(playingcard.PlayingCard) bool
 }
 
 type Royalty struct {
-	PlayerID   int64
 	Card       playingcard.PlayingCard
 	Base       int
 	Percentage float64
@@ -25,21 +24,30 @@ type CoupResult struct {
 	BettorWon  bool
 }
 
-func GetRoyalties(players map[int64]Player, coup CoupResult) (royalties []Royalty) {
-	playerSuitCounts := make(map[int64]map[playingcard.Suit]int, len(players))
+func GetRoyalties[K comparable, V Player](players map[K]V, coup CoupResult) map[K][]Royalty {
+	playerSuitCounts := make(map[K]map[playingcard.Suit]int, len(players))
+	cards := playingcard.NewDeckRankOrdered()
+
+	royalties := make(map[K][]Royalty, len(players))
+	for pid := range players {
+		royalties[pid] = make([]Royalty, 0)
+	}
+
 	for pid := range players {
 		suitCounts := make(map[playingcard.Suit]int, 4)
 		for s := playingcard.SuitSpade; s < playingcard.SuitSpade+4; s++ {
 			suitCounts[s] = 0
 		}
 
-		for _, card := range players[pid].LicensedCards {
-			suitCounts[card.Suit]++
+		for _, card := range cards {
+			if players[pid].IsLicensee(card) {
+				suitCounts[card.Suit]++
+			}
 		}
 		playerSuitCounts[pid] = suitCounts
 	}
 
-	otherPlayerSuitCounts := make(map[int64]map[playingcard.Suit]int, len(players))
+	otherPlayerSuitCounts := make(map[K]map[playingcard.Suit]int, len(players))
 	for pid := range players {
 		suitCounts := make(map[playingcard.Suit]int, 4)
 		for s := playingcard.SuitSpade; s < playingcard.SuitSpade+4; s++ {
@@ -54,24 +62,29 @@ func GetRoyalties(players map[int64]Player, coup CoupResult) (royalties []Royalt
 		otherPlayerSuitCounts[pid] = suitCounts
 	}
 
-	playerRankCounts := make(map[int64]map[playingcard.Rank]int, len(players))
+	playerRankCounts := make(map[K]map[playingcard.Rank]int, len(players))
 	for pid := range players {
 		rankCounts := make(map[playingcard.Rank]int, 13)
 		for r := playingcard.RankAce; r <= playingcard.RankKing; r++ {
 			rankCounts[r] = 0
 		}
 
-		for _, card := range players[pid].LicensedCards {
-			rankCounts[card.Rank]++
+		for _, card := range cards {
+			if players[pid].IsLicensee(card) {
+				rankCounts[card.Rank]++
+			}
 		}
 		playerRankCounts[pid] = rankCounts
 	}
 
 	for pid, p := range players {
-		for _, card := range p.LicensedCards {
+		for _, card := range cards {
+			if !p.IsLicensee(card) {
+				continue
+			}
+
 			royalty := Royalty{
 				Card:     card,
-				PlayerID: pid,
 			}
 			royalty.Base = RoyaltyBasePerCardOfRank * playerRankCounts[pid][card.Rank]
 			switch card.Rank {
@@ -88,11 +101,11 @@ func GetRoyalties(players map[int64]Player, coup CoupResult) (royalties []Royalt
 				royalty.Percentage = 0.01 * float64(card.Rank)
 			}
 
-			royalties = append(royalties, royalty)
+			royalties[pid] = append(royalties[pid], royalty)
 		}
 	}
 
-	return
+	return royalties
 }
 
 func GetLicensePrice(card playingcard.PlayingCard) int {
