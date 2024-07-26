@@ -95,3 +95,21 @@ func GetRoyalties(players map[int64]Player, coup CoupResult) (royalties []Royalt
 	return
 }
 
+func GetCardPrice(card playingcard.PlayingCard) int {
+	rankPrice := []int{
+		160, // Ace
+		120,
+		130,
+		140,
+		150,
+		160,
+		170,
+		180,
+		190,
+		200, // 10
+		240,
+		220,
+		220, // King
+	}
+	return rankPrice[card.Rank - playingcard.RankAce]
+}

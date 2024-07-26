@@ -38,7 +38,7 @@ type PlayingCard struct {
 
 func (card PlayingCard) String() string {
 	suits := []string{"♠", "♥", "♣", "♦"}
-	suit := suits[int(card.Suit)]
+	suit := suits[card.Suit]
 
 	var rank string
 	switch card.Rank {
@@ -57,13 +57,25 @@ func (card PlayingCard) String() string {
 	return fmt.Sprintf("[%s%s]", rank, suit)
 }
 
-func PlayingCardToInt16(card PlayingCard) int16 {
+func (card PlayingCard) ID() int16 {
 	return (int16(card.Suit) << 8) | int16(card.Rank)
 }
 
-func Int16ToPlayingCard(n int16) PlayingCard {
+func FromID(id int16) PlayingCard {
 	return PlayingCard{
-		Suit: Suit(n >> 8),
-		Rank: Rank(n & 0xFF),
+		Suit: Suit(id >> 8),
+		Rank: Rank(id & 0xFF),
 	}
+}
+
+func NewDeckRankOrdered() []PlayingCard {
+	deck := make([]PlayingCard, 52)
+	i := 0
+	for r := RankAce; r <= RankKing; r++ {
+		for s := SuitSpade; s < SuitSpade + 4; s++ {
+			deck[i].Suit, deck[i].Rank = s, r
+			i++
+		}
+	}
+	return deck
 }
