@@ -6,7 +6,7 @@ import (
 )
 
 var playersState1 map[int64]Player = map[int64]Player{
-	1: Player{
+	1: {
 		LicensedCards: []playingcard.PlayingCard{
 			{
 				Suit: playingcard.SuitSpade,
@@ -26,7 +26,7 @@ var playersState1 map[int64]Player = map[int64]Player{
 			},
 		},
 	},
-	2: Player{
+	2: {
 		LicensedCards: []playingcard.PlayingCard{
 			{
 				Suit: playingcard.SuitDiamond,
@@ -46,7 +46,7 @@ var playersState1 map[int64]Player = map[int64]Player{
 			},
 		},
 	},
-	3: Player{
+	3: {
 		LicensedCards: []playingcard.PlayingCard{
 			{
 				Suit: playingcard.SuitDiamond,

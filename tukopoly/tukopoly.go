@@ -27,7 +27,7 @@ type CoupResult struct {
 
 func GetRoyalties(players map[int64]Player, coup CoupResult) (royalties []Royalty) {
 	playerSuitCounts := make(map[int64]map[playingcard.Suit]int, len(players))
-	for pid, _ := range players {
+	for pid := range players {
 		suitCounts := make(map[playingcard.Suit]int, 4)
 		for s := playingcard.SuitSpade; s < playingcard.SuitSpade+4; s++ {
 			suitCounts[s] = 0
@@ -40,11 +40,11 @@ func GetRoyalties(players map[int64]Player, coup CoupResult) (royalties []Royalt
 	}
 
 	otherPlayerSuitCounts := make(map[int64]map[playingcard.Suit]int, len(players))
-	for pid, _ := range players {
+	for pid := range players {
 		suitCounts := make(map[playingcard.Suit]int, 4)
 		for s := playingcard.SuitSpade; s < playingcard.SuitSpade+4; s++ {
 			suitCounts[s] = 0
-			for opid, _ := range players {
+			for opid := range players {
 				if opid == pid {
 					continue
 				}
@@ -55,7 +55,7 @@ func GetRoyalties(players map[int64]Player, coup CoupResult) (royalties []Royalt
 	}
 
 	playerRankCounts := make(map[int64]map[playingcard.Rank]int, len(players))
-	for pid, _ := range players {
+	for pid := range players {
 		rankCounts := make(map[playingcard.Rank]int, 13)
 		for r := playingcard.RankAce; r <= playingcard.RankKing; r++ {
 			rankCounts[r] = 0
