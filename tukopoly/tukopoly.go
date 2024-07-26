@@ -13,7 +13,6 @@ type Player interface {
 }
 
 type Royalty struct {
-	Card       playingcard.PlayingCard
 	Base       int
 	Percentage float64
 }
@@ -24,13 +23,14 @@ type CoupResult struct {
 	BettorWon  bool
 }
 
-func GetRoyalties[K comparable, V Player](players map[K]V, coup CoupResult) map[K][]Royalty {
+func GetRoyalties[K comparable, V Player](
+	players map[K]V, coup CoupResult) map[K]map[playingcard.PlayingCard]Royalty {
 	playerSuitCounts := make(map[K]map[playingcard.Suit]int, len(players))
 	cards := playingcard.NewDeckRankOrdered()
 
-	royalties := make(map[K][]Royalty, len(players))
+	royalties := make(map[K]map[playingcard.PlayingCard]Royalty, len(players))
 	for pid := range players {
-		royalties[pid] = make([]Royalty, 0)
+		royalties[pid] = make(map[playingcard.PlayingCard]Royalty)
 	}
 
 	for pid := range players {
@@ -83,10 +83,10 @@ func GetRoyalties[K comparable, V Player](players map[K]V, coup CoupResult) map[
 				continue
 			}
 
+
 			royalty := Royalty{
-				Card:     card,
+				Base: RoyaltyBasePerCardOfRank * playerRankCounts[pid][card.Rank],
 			}
-			royalty.Base = RoyaltyBasePerCardOfRank * playerRankCounts[pid][card.Rank]
 			switch card.Rank {
 			case playingcard.RankAce:
 				royalty.Percentage = 0.01
@@ -101,7 +101,7 @@ func GetRoyalties[K comparable, V Player](players map[K]V, coup CoupResult) map[
 				royalty.Percentage = 0.01 * float64(card.Rank)
 			}
 
-			royalties[pid] = append(royalties[pid], royalty)
+			royalties[pid][card] = royalty
 		}
 	}
 
