@@ -61,6 +61,6 @@ func TestBasic(t *testing.T) {
 		BettorWon: true,
 	}
 	royalties := GetRoyalties(playersState1, coup)
-	
+
 	t.Log(royalties)
 }

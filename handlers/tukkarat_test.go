@@ -9,7 +9,7 @@ import (
 )
 
 type MockDB struct {
-	Wallets []models.Wallet
+	Wallets              []models.Wallet
 	TukopolyCardLicenses []models.TukopolyCardLicense
 }
 
@@ -54,7 +54,7 @@ func TestBasic(t *testing.T) {
 	}
 	db.Wallets[0].UserID = 101
 	db.Wallets[0].Tukens = 1000
-	
+
 	h := Tukkarat{
 		Tukens:  100,
 		Outcome: baccarat.OutcomeBankerWin,
@@ -85,7 +85,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 	}
-	
+
 	_, _ = h.Handle(&db, 0, 101)
 	if db.Wallets[0].Tukens != 900 {
 		t.Fatalf("tukens match %d", db.Wallets[0].Tukens)

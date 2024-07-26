@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-type TukopolyViewLicenses struct {}
+type TukopolyViewLicenses struct{}
 
 func (h TukopolyViewLicenses) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
-	licenses, err :=  db.SelectTukopolyCardLicensesByGuild(gid)
+	licenses, err := db.SelectTukopolyCardLicensesByGuild(gid)
 	if err == nil {
 		deck := playingcard.NewDeckRankOrdered()
 		sb := strings.Builder{}

@@ -72,7 +72,7 @@ func NewDeckRankOrdered() []PlayingCard {
 	deck := make([]PlayingCard, 52)
 	i := 0
 	for r := RankAce; r <= RankKing; r++ {
-		for s := SuitSpade; s < SuitSpade + 4; s++ {
+		for s := SuitSpade; s < SuitSpade+4; s++ {
 			deck[i].Suit, deck[i].Rank = s, r
 			i++
 		}
