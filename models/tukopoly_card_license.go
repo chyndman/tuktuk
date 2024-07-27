@@ -10,7 +10,7 @@ type TukopolyCardLicense struct {
 	UserID  int64
 }
 
-func (pg *PostgreSQLBroker) SelectTukopolyCardLicensesByGuildCard(gid int64, cid int16) (l TukopolyCardLicense, err error) {
+func (pg *PostgreSQLBroker) SelectTukopolyCardLicenseByGuildCard(gid int64, cid int16) (l TukopolyCardLicense, err error) {
 	var rows pgx.Rows
 	rows, err = pg.Tx.Query(
 		pg.Context,

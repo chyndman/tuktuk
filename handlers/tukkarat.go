@@ -1,14 +1,15 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	tempest "github.com/Amatsagu/Tempest"
 	"github.com/chyndman/tuktuk/baccarat"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/chyndman/tuktuk/playingcard"
-	"github.com/jackc/pgx/v5"
+	"github.com/chyndman/tuktuk/tukopoly"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"math"
+	"strings"
 )
 
 type Tukkarat struct {
@@ -17,47 +18,193 @@ type Tukkarat struct {
 	Shoe    []playingcard.PlayingCard
 }
 
-func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
-	wallet, err := db.SelectWalletByGuildUser(gid, uid)
-	if err == nil {
-		if wallet.Tukens < h.Tukens {
-			re.PrivateMsg = fmt.Sprintf(
-				"⚠️ Unable to bet %s. You have %s.",
-				tukensDisplay(h.Tukens),
-				tukensDisplay(wallet.Tukens))
-		} else {
-			player, banker, outcome := baccarat.PlayCoup(h.Shoe)
-			payout := baccarat.GetPayout(outcome, int(h.Tukens))
-			diffTukens := 0 - h.Tukens
-			if h.Outcome == outcome {
-				diffTukens = int64(payout)
-			}
+type royaltyHit struct {
+	count  uint
+	royalty tukopoly.Royalty
+}
 
-			wallet.Tukens += diffTukens
-			err = db.UpdateWallet(wallet)
-			if err == nil {
-				outcomeStr := "won"
-				absDiffTukens := diffTukens
-				if diffTukens < 0 {
-					outcomeStr = "lost"
-					absDiffTukens = 0 - diffTukens
-				}
-				blk := formatTukkaratCodeBlock(player, banker)
-				re.PublicMsg = fmt.Sprintf(
-					"%s %s %s in a game of Tukkarat!\n%s",
-					mention(uid),
-					outcomeStr,
-					tukensDisplay(absDiffTukens),
-					blk)
-				re.PrivateMsg = fmt.Sprintf(
-					"You now have %s.",
-					tukensDisplay(wallet.Tukens))
-			}
+type player struct {
+	licensedCardIDs []int16
+	hits            map[int16]royaltyHit
+	amountAcc       int64
+}
+
+func (p player) IsLicensee(card playingcard.PlayingCard) bool {
+	for _, cid := range p.licensedCardIDs {
+		if card.ID() == cid {
+			return true
 		}
-	} else if errors.Is(err, pgx.ErrNoRows) {
+	}
+	return false
+}
+
+func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
+	var wallets []models.Wallet
+	userWalletIdx := -1
+	if wallets, err = db.SelectWalletsByGuild(gid); err != nil {
+		return
+	}
+
+	for i, w := range wallets {
+		if uid == w.UserID {
+			userWalletIdx = i
+			break
+		}
+	}
+	if -1 == userWalletIdx {
 		err = nil
 		re.PrivateMsg = NoWalletErrorMsg
+		return
 	}
+
+	if wallets[userWalletIdx].Tukens < h.Tukens {
+		re.PrivateMsg = fmt.Sprintf(
+			"⚠️ Unable to bet %s. You have %s.",
+			tukensDisplay(h.Tukens),
+			tukensDisplay(wallets[userWalletIdx].Tukens))
+		return
+	}
+
+	var coup tukopoly.CoupResult
+	var outcome baccarat.Outcome
+	coup.PlayerHand, coup.BankerHand, outcome = baccarat.PlayCoup(h.Shoe)
+	coup.BettorWon = h.Outcome == outcome
+	blk := formatTukkaratCodeBlock(coup.PlayerHand, coup.BankerHand)
+
+	if baccarat.OutcomeTie == outcome && !coup.BettorWon {
+		re.PrivateMsg = "🫸 Passenger and Driver tied. You didn't bet on tie so your bet was pushed.\n" + blk;
+		return
+	}
+
+	var licenses []models.TukopolyCardLicense
+	if licenses, err = db.SelectTukopolyCardLicensesByGuild(gid); err != nil {
+		return
+	}
+
+	payout := int64(baccarat.GetPayout(outcome, int(h.Tukens)))
+	royaltyBasis := payout
+	royaltyBasisDesc := "payout"
+	if !coup.BettorWon {
+		royaltyBasis = h.Tukens
+		royaltyBasisDesc = "bet"
+	}
+
+	players := make(map[int64]player)
+	for _, l := range licenses {
+		p := players[l.UserID]
+		p.licensedCardIDs = append(p.licensedCardIDs, l.CardID)
+		if p.hits == nil {
+			p.hits = make(map[int16]royaltyHit)
+		}
+		players[l.UserID] = p
+	}
+
+	royalties := tukopoly.GetRoyalties(players, coup)
+
+	coupCards := make([]playingcard.PlayingCard, len(coup.PlayerHand.Cards)+len(coup.BankerHand.Cards))
+	coupCards = append(coupCards, coup.PlayerHand.Cards...)
+	coupCards = append(coupCards, coup.BankerHand.Cards...)
+
+	var totalCount uint = 0
+	var totalAmountAcc int64 = 0
+	for pid, player := range players {
+		playerRoyalties := royalties[pid]
+		for _, card := range coupCards {
+			if !player.IsLicensee(card) {
+				continue
+			}
+
+			royalty := playerRoyalties[card]
+			amount := int64(royalty.Base) + int64(math.Ceil(royalty.Percentage*float64(royaltyBasis)))
+			hit := player.hits[card.ID()]
+			hit.royalty = royalty
+			hit.count++
+			player.hits[card.ID()] = hit
+			player.amountAcc += amount
+
+			totalAmountAcc += amount
+			totalCount++
+		}
+		players[pid] = player
+	}
+
+	for i := range wallets {
+		prevTukens := wallets[i].Tukens
+
+		isBettor := userWalletIdx == i
+		if isBettor {
+			if coup.BettorWon {
+				wallets[i].Tukens += payout
+			} else {
+				wallets[i].Tukens -= h.Tukens
+			}
+		}
+
+		if player, match := players[wallets[i].UserID]; match && !(coup.BettorWon && isBettor) {
+			wallets[i].Tukens += player.amountAcc
+		}
+
+		if prevTukens == wallets[i].Tukens {
+			continue
+		}
+
+		if err = db.UpdateWallet(wallets[i]); err != nil {
+			return
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(mention(uid))
+
+	if h.Outcome == outcome {
+		sb.WriteString(" won ")
+	} else {
+		sb.WriteString(" lost ")
+	}
+
+	sb.WriteString(fmt.Sprintf("%s in a game of Tukkarat!\n", tukensDisplay(royaltyBasis)))
+	sb.WriteString(formatTukkaratCodeBlock(coup.PlayerHand, coup.BankerHand))
+
+	if 0 == totalCount {
+		sb.WriteString("No licensed cards were dealt.")
+	} else {
+		sb.WriteString(fmt.Sprintf("%d licensed cards were dealt, totaling %s in royalties on the %s %s:\n",
+			totalCount,
+			tukensDisplay(totalAmountAcc),
+			tukensDisplay(royaltyBasis),
+			royaltyBasisDesc))
+
+		for pid, player := range players {
+			prefix := " received "
+			suffix := ""
+			if pid == uid {
+				if !coup.BettorWon {
+					prefix = " recovered "
+					suffix = " from their lost bet"
+				} else {
+					prefix = " paid themself "
+					suffix = " from their own payout"
+				}
+			}
+			sb.WriteString(
+				fmt.Sprintf("- %s%s%s%s\n",
+					mention(pid),
+					prefix,
+					tukensDisplay(player.amountAcc),
+					suffix))
+			for cid, hit := range player.hits {
+				sb.WriteString(fmt.Sprintf("  - %dx `%s` %d + %.1f",
+					hit.count,
+					playingcard.FromID(cid).String(),
+					hit.royalty.Base,
+					100.0 * hit.royalty.Percentage))
+				sb.WriteString("%%\n")
+			}
+		}
+	}
+
+	re.PublicMsg = sb.String()
+	re.PrivateMsg = fmt.Sprintf("You now have %s.", tukensDisplay(wallets[userWalletIdx].Tukens))
 
 	return
 }
@@ -82,7 +229,7 @@ func formatTukkaratCodeBlock(player baccarat.Hand, banker baccarat.Hand) string 
 	playerLine := fmtLine("Pass.", playerRole, player)
 	bankerLine := fmtLine("Drv. ", bankerRole, banker)
 
-	return fmt.Sprintf("```\n%s\n%s\n```", playerLine, bankerLine)
+	return fmt.Sprintf("```\n%s\n%s\n```\n", playerLine, bankerLine)
 }
 
 func NewTukkarat(dbPool *pgxpool.Pool) tempest.Command {

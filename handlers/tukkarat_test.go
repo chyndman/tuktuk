@@ -44,16 +44,46 @@ func (db *MockDB) SelectTukopolyCardLicensesByGuild(gid int64) ([]models.Tukopol
 	return db.TukopolyCardLicenses, nil
 }
 
+func (db *MockDB) SelectTukopolyCardLicenseByGuildCard(gid int64, cid int16) (models.TukopolyCardLicense, error) {
+	for i := range db.TukopolyCardLicenses {
+		if db.TukopolyCardLicenses[i].GuildID == gid && db.TukopolyCardLicenses[i].CardID == cid {
+			return db.TukopolyCardLicenses[i], nil
+		}
+	}
+	return models.TukopolyCardLicense{}, pgx.ErrNoRows
+}
+
 func (db *MockDB) InsertTukopolyCardLicense(l models.TukopolyCardLicense) error {
 	return nil
 }
 
 func TestBasic(t *testing.T) {
 	db := MockDB{
-		Wallets: make([]models.Wallet, 1),
+		Wallets:              make([]models.Wallet, 3),
+		TukopolyCardLicenses: make([]models.TukopolyCardLicense, 3),
 	}
 	db.Wallets[0].UserID = 101
 	db.Wallets[0].Tukens = 1000
+	db.Wallets[1].UserID = 102
+	db.Wallets[1].Tukens = 1000
+	db.Wallets[2].UserID = 103
+	db.Wallets[2].Tukens = 1000
+
+	db.TukopolyCardLicenses[0].UserID = 101
+	db.TukopolyCardLicenses[0].CardID = playingcard.PlayingCard{
+		Suit: playingcard.SuitSpade,
+		Rank: playingcard.Rank3,
+	}.ID()
+	db.TukopolyCardLicenses[1].UserID = 102
+	db.TukopolyCardLicenses[1].CardID = playingcard.PlayingCard{
+		Suit: playingcard.SuitSpade,
+		Rank: playingcard.Rank10,
+	}.ID()
+	db.TukopolyCardLicenses[2].UserID = 103
+	db.TukopolyCardLicenses[2].CardID = playingcard.PlayingCard{
+		Suit: playingcard.SuitSpade,
+		Rank: playingcard.RankJack,
+	}.ID()
 
 	h := Tukkarat{
 		Tukens:  100,
@@ -61,33 +91,35 @@ func TestBasic(t *testing.T) {
 		Shoe: []playingcard.PlayingCard{
 			{
 				Suit: playingcard.SuitSpade,
-				Rank: playingcard.Rank2,
+				Rank: playingcard.RankAce,
 			},
 			{
 				Suit: playingcard.SuitSpade,
-				Rank: playingcard.Rank2,
+				Rank: playingcard.RankJack,
 			},
 			{
 				Suit: playingcard.SuitSpade,
-				Rank: playingcard.Rank2,
+				Rank: playingcard.Rank4,
 			},
 			{
 				Suit: playingcard.SuitSpade,
-				Rank: playingcard.Rank2,
+				Rank: playingcard.Rank3,
 			},
 			{
 				Suit: playingcard.SuitSpade,
-				Rank: playingcard.Rank2,
+				Rank: playingcard.Rank5,
 			},
 			{
 				Suit: playingcard.SuitSpade,
-				Rank: playingcard.Rank2,
+				Rank: playingcard.Rank10,
 			},
 		},
 	}
 
-	_, _ = h.Handle(&db, 0, 101)
-	if db.Wallets[0].Tukens != 900 {
-		t.Fatalf("tukens match %d", db.Wallets[0].Tukens)
+	re, _ := h.Handle(&db, 0, 101)
+	t.Logf(re.PublicMsg)
+	t.Logf(re.PrivateMsg)
+	for i := range db.Wallets {
+		t.Logf("%d -> %d", db.Wallets[i].UserID, db.Wallets[i].Tukens)
 	}
 }

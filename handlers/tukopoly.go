@@ -60,7 +60,7 @@ type TukopolyBuyLicense struct {
 
 func (h TukopolyBuyLicense) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
 	var license models.TukopolyCardLicense
-	license, err = db.SelectTukopolyCardLicensesByGuildCard(gid, h.LicensedCard.ID())
+	license, err = db.SelectTukopolyCardLicenseByGuildCard(gid, h.LicensedCard.ID())
 	if err == nil {
 		re.PrivateMsg =
 			fmt.Sprintf("⚠️ `%s` is already licensed to %s.",
