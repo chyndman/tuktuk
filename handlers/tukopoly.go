@@ -72,7 +72,7 @@ func (h TukopolyBuyLicense) Handle(db models.DBBroker, gid int64, uid int64) (re
 			cost := int64(tukopoly.GetLicensePrice(h.LicensedCard))
 			if wallet.Tukens < cost {
 				re.PrivateMsg =
-					fmt.Sprintf("⚠️ Cannot purchase `%s` for %s. You have %s.",
+					fmt.Sprintf("⚠️ Cannot buy `%s` license for %s. You have %s.",
 						h.LicensedCard.String(), tukensDisplay(cost), tukensDisplay(wallet.Tukens))
 			} else {
 				wallet.Tukens -= cost
