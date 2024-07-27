@@ -83,7 +83,6 @@ func GetRoyalties[K comparable, V Player](
 				continue
 			}
 
-
 			royalty := Royalty{
 				Base: RoyaltyBasePerCardOfRank * playerRankCounts[pid][card.Rank],
 			}

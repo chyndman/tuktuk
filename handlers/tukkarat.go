@@ -19,7 +19,7 @@ type Tukkarat struct {
 }
 
 type royaltyHit struct {
-	count  uint
+	count   uint
 	royalty tukopoly.Royalty
 }
 
@@ -72,7 +72,7 @@ func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, er
 	blk := formatTukkaratCodeBlock(coup.PlayerHand, coup.BankerHand)
 
 	if baccarat.OutcomeTie == outcome && !coup.BettorWon {
-		re.PrivateMsg = "🫸 Passenger and Driver tied. You didn't bet on tie so your bet was pushed.\n" + blk;
+		re.PrivateMsg = "🫸 Passenger and Driver tied. You didn't bet on tie so your bet was pushed.\n" + blk
 		return
 	}
 
@@ -197,7 +197,7 @@ func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, er
 					hit.count,
 					playingcard.FromID(cid).String(),
 					hit.royalty.Base,
-					100.0 * hit.royalty.Percentage))
+					100.0*hit.royalty.Percentage))
 				sb.WriteString("%%\n")
 			}
 		}
