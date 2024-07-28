@@ -21,6 +21,7 @@ type Tukkarat struct {
 type royaltyHit struct {
 	count   uint
 	royalty tukopoly.Royalty
+	amount  int64
 }
 
 type player struct {
@@ -119,6 +120,7 @@ func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, er
 			hit := player.hits[card.ID()]
 			hit.royalty = royalty
 			hit.count++
+			hit.amount = amount
 			player.hits[card.ID()] = hit
 			player.amountAcc += amount
 
@@ -134,13 +136,13 @@ func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, er
 		isBettor := userWalletIdx == i
 		if isBettor {
 			if coup.BettorWon {
-				wallets[i].Tukens += payout
+				wallets[i].Tukens += payout - totalAmountAcc
 			} else {
 				wallets[i].Tukens -= h.Tukens
 			}
 		}
 
-		if player, match := players[wallets[i].UserID]; match && !(coup.BettorWon && isBettor) {
+		if player, match := players[wallets[i].UserID]; match {
 			wallets[i].Tukens += player.amountAcc
 		}
 
@@ -168,7 +170,7 @@ func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, er
 	if 0 == totalCount {
 		sb.WriteString("No licensed cards were dealt.")
 	} else {
-		sb.WriteString(fmt.Sprintf("%d licensed cards were dealt, totaling %s in royalties on the %s %s:\n",
+		sb.WriteString(fmt.Sprintf("%d licensed cards were dealt, totaling %s in royalties on the %s %s:",
 			totalCount,
 			tukensDisplay(totalAmountAcc),
 			tukensDisplay(royaltyBasis),
@@ -187,18 +189,18 @@ func (h Tukkarat) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, er
 				}
 			}
 			sb.WriteString(
-				fmt.Sprintf("- %s%s%s%s\n",
+				fmt.Sprintf("\n- %s%s%s%s",
 					mention(pid),
 					prefix,
 					tukensDisplay(player.amountAcc),
 					suffix))
 			for cid, hit := range player.hits {
-				sb.WriteString(fmt.Sprintf("  - %dx `%s` %d + %.1f",
+				sb.WriteString(fmt.Sprintf("\n  - %dx `%s` %s (%d + ⌈%.2f⌉)",
 					hit.count,
 					playingcard.FromID(cid).String(),
+					tukensDisplay(hit.amount),
 					hit.royalty.Base,
-					100.0*hit.royalty.Percentage))
-				sb.WriteString("%%\n")
+					hit.royalty.Percentage*float64(royaltyBasis)))
 			}
 		}
 	}
@@ -229,7 +231,7 @@ func formatTukkaratCodeBlock(player baccarat.Hand, banker baccarat.Hand) string 
 	playerLine := fmtLine("Pass.", playerRole, player)
 	bankerLine := fmtLine("Drv. ", bankerRole, banker)
 
-	return fmt.Sprintf("```\n%s\n%s\n```\n", playerLine, bankerLine)
+	return fmt.Sprintf("```\n%s\n%s\n```", playerLine, bankerLine)
 }
 
 func NewTukkarat(dbPool *pgxpool.Pool) tempest.Command {

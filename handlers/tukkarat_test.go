@@ -86,7 +86,7 @@ func TestBasic(t *testing.T) {
 	}.ID()
 
 	h := Tukkarat{
-		Tukens:  100,
+		Tukens:  1000,
 		Outcome: baccarat.OutcomeBankerWin,
 		Shoe: []playingcard.PlayingCard{
 			{
@@ -117,8 +117,8 @@ func TestBasic(t *testing.T) {
 	}
 
 	re, _ := h.Handle(&db, 0, 101)
-	t.Logf(re.PublicMsg)
-	t.Logf(re.PrivateMsg)
+	t.Logf("Public:\n%s", re.PublicMsg)
+	t.Logf("Private:\n%s", re.PrivateMsg)
 	for i := range db.Wallets {
 		t.Logf("%d -> %d", db.Wallets[i].UserID, db.Wallets[i].Tukens)
 	}
