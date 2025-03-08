@@ -34,7 +34,7 @@ func (h TikTukSetTimeZone) Handle(db models.DBBroker, gid int64, uid int64) (re 
 				h.TZIdentifier)
 		}
 	} else if strings.HasPrefix(err.Error(), "unknown time zone ") {
-		re.PrivateMsg = "⚠️ Invalid time zone"
+		re.PrivateMsg = "⚠️ Invalid time zone. See list of timezones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)."
 		err = nil
 	}
 	return
