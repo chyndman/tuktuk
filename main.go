@@ -63,6 +63,12 @@ func main() {
 	_ = client.RegisterCommand(slashTukopoly)
 	_ = client.RegisterSubCommand(handlers.NewTukopolyViewLicenses(dbPool), slashTukopoly.Name)
 	_ = client.RegisterSubCommand(handlers.NewTukopolyBuyLicense(dbPool), slashTukopoly.Name)
+	slashTikTuk := tempest.Command{
+		Name:        "tiktuk",
+		Description: "Time nonsense",
+	}
+	_ = client.RegisterCommand(slashTikTuk)
+	_ = client.RegisterSubCommand(handlers.NewTikTukSetTimeZone(dbPool), slashTikTuk.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
