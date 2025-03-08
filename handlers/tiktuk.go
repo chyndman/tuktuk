@@ -17,10 +17,7 @@ type TikTukSetTimeZone struct {
 
 func (h TikTukSetTimeZone) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
 	_, err = time.LoadLocation(h.TZIdentifier)
-	if strings.HasPrefix(err.Error(), "unknown time zone ") {
-		re.PrivateMsg = "⚠️ Invalid time zone"
-		err = nil
-	} else if err == nil {
+	if err == nil {
 		var user models.User
 		user, err = db.SelectUser(uid)
 		if err == nil {
@@ -36,6 +33,9 @@ func (h TikTukSetTimeZone) Handle(db models.DBBroker, gid int64, uid int64) (re 
 				"Your time zone is now \"%s\" (all servers).",
 				h.TZIdentifier)
 		}
+	} else if strings.HasPrefix(err.Error(), "unknown time zone ") {
+		re.PrivateMsg = "⚠️ Invalid time zone"
+		err = nil
 	}
 	return
 }
