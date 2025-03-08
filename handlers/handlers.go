@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	tempest "github.com/Amatsagu/Tempest"
+	"github.com/amatsagu/tempest"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

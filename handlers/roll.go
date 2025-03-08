@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	tempest "github.com/Amatsagu/Tempest"
+	"github.com/amatsagu/tempest"
 	"math/rand"
 )
 

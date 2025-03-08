@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	tempest "github.com/Amatsagu/Tempest"
+	"github.com/amatsagu/tempest"
 	"github.com/chyndman/tuktuk/baccarat"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/chyndman/tuktuk/playingcard"

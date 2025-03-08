@@ -3,7 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
-	tempest "github.com/Amatsagu/Tempest"
+	"github.com/amatsagu/tempest"
 	"github.com/chyndman/tuktuk/models"
 	"github.com/chyndman/tuktuk/playingcard"
 	"github.com/chyndman/tuktuk/tukopoly"

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	tempest "github.com/Amatsagu/Tempest"
+	"github.com/amatsagu/tempest"
 	"github.com/chyndman/tuktuk/handlers"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
