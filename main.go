@@ -69,6 +69,7 @@ func main() {
 	}
 	_ = client.RegisterCommand(slashTikTuk)
 	_ = client.RegisterSubCommand(handlers.NewTikTukSetTimeZone(dbPool), slashTikTuk.Name)
+	_ = client.RegisterSubCommand(handlers.NewTikTukGetTimeSimple(dbPool), slashTikTuk.Name)
 
 	if "1" == os.Getenv("TUKTUK_SYNC_INHIBIT") {
 		log.Printf("Sync commands inhibited")
