@@ -28,7 +28,7 @@ type DBHandler interface {
 }
 
 func getGuildUserKey(itx *tempest.CommandInteraction) (gid int64, uid int64) {
-	return int64(itx.GuildID), int64(itx.Member.User.ID)
+	return int64(itx.GuildID), int64(itx.User.ID)
 }
 
 func finishHandler(re Reply, err error, itx *tempest.CommandInteraction) {
