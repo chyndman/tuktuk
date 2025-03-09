@@ -16,8 +16,19 @@ type TikTukSetTimeZone struct {
 }
 
 type TikTukGetTimeSimple struct {
-	Time time.Time
+	Weekday time.Weekday
+	Hour    int
+	Minute  int
 }
+
+const (
+	weekdayToday time.Weekday = time.Sunday - 1
+)
+
+const (
+	am = iota
+	pm
+)
 
 func (h TikTukSetTimeZone) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
 	_, err = time.LoadLocation(h.TZIdentifier)
@@ -69,7 +80,38 @@ func NewTikTukSetTimeZone(dbPool *pgxpool.Pool) tempest.Command {
 }
 
 func (h TikTukGetTimeSimple) Handle(db models.DBBroker, gid int64, uid int64) (re Reply, err error) {
-	re.PrivateMsg = "TODO"
+	var loc *time.Location
+
+	var user models.User
+	user, err = db.SelectUser(uid)
+	if err == nil {
+		loc, err = time.LoadLocation(user.TZIdentifier)
+	} else if errors.Is(err, pgx.ErrNoRows) {
+		loc, err = time.LoadLocation("UTC")
+	}
+
+	if err == nil {
+		timeUserLocal := time.Now().In(loc)
+		timeReqUserLocal := time.Date(
+			timeUserLocal.Year(),
+			timeUserLocal.Month(),
+			timeUserLocal.Day(),
+			h.Hour,
+			h.Minute,
+			0,
+			0,
+			loc)
+		if (weekdayToday != h.Weekday) {
+			for h.Weekday != timeReqUserLocal.Weekday() {
+				timeReqUserLocal = timeReqUserLocal.AddDate(0, 0, 1)
+			}
+		}
+		timeReqUtc := timeReqUserLocal.UTC()
+
+		re.PrivateMsg = fmt.Sprintf("<t:%d>, <t:%d:R>",
+			timeReqUtc.Unix(),
+			timeReqUtc.Unix())
+	}
 	return
 }
 
@@ -96,9 +138,19 @@ func NewTikTukGetTimeSimple(dbPool *pgxpool.Pool) tempest.Command {
 				MaxValue:    59,
 			},
 			{
-				Name:        "pm",
-				Description: "PM",
-				Type:        tempest.BOOLEAN_OPTION_TYPE,
+				Name:        "ampm",
+				Description: "AM/PM (24-hour time if omitted)",
+				Type:        tempest.INTEGER_OPTION_TYPE,
+				Choices: []tempest.Choice{
+					{
+						Name:  "AM",
+						Value: am,
+					},
+					{
+						Name:  "PM",
+						Value: pm,
+					},
+				},
 			},
 			{
 				Name:        "weekday",
@@ -106,41 +158,57 @@ func NewTikTukGetTimeSimple(dbPool *pgxpool.Pool) tempest.Command {
 				Type:        tempest.INTEGER_OPTION_TYPE,
 				Choices: []tempest.Choice{
 					{
-						Name: "Sunday",
+						Name:  "Sunday",
 						Value: time.Sunday,
 					},
 					{
-						Name: "Monday",
+						Name:  "Monday",
 						Value: time.Monday,
 					},
 					{
-						Name: "Tuesday",
+						Name:  "Tuesday",
 						Value: time.Tuesday,
 					},
 					{
-						Name: "Wednesday",
+						Name:  "Wednesday",
 						Value: time.Wednesday,
 					},
 					{
-						Name: "Thursday",
+						Name:  "Thursday",
 						Value: time.Thursday,
 					},
 					{
-						Name: "Friday",
+						Name:  "Friday",
 						Value: time.Friday,
 					},
 					{
-						Name: "Saturday",
+						Name:  "Saturday",
 						Value: time.Saturday,
 					},
 				},
 			},
 		},
 		SlashCommandHandler: func(itx *tempest.CommandInteraction) {
-			tzOpt, _ := itx.GetOptionValue("tz")
-			tz := tzOpt.(string)
-			h := TikTukSetTimeZone{
-				TZIdentifier: tz,
+			hourOpt, _ := itx.GetOptionValue("hour")
+			minuteOpt, _ := itx.GetOptionValue("minute")
+			ampmOpt, ampmProvided := itx.GetOptionValue("ampm")
+			weekdayOpt, weekdayProvided := itx.GetOptionValue("weekday")
+
+			hour := int(hourOpt.(float64))
+			minute := int(minuteOpt.(float64))
+			isPm := ampmProvided && pm == int(ampmOpt.(float64)) && 1 <= hour && hour <= 12
+			if isPm {
+				hour += 12
+			}
+			weekday := weekdayToday
+			if weekdayProvided {
+				weekday = time.Weekday(weekdayOpt.(float64))
+			}
+
+			h := TikTukGetTimeSimple{
+				Hour:    hour,
+				Minute:  minute,
+				Weekday: weekday,
 			}
 			doDBHandler(h, itx, dbPool)
 		},
