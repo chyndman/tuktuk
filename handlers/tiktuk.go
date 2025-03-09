@@ -101,14 +101,14 @@ func (h TikTukGetTimeSimple) Handle(db models.DBBroker, gid int64, uid int64) (r
 			0,
 			0,
 			loc)
-		if (weekdayToday != h.Weekday) {
+		if weekdayToday != h.Weekday {
 			for h.Weekday != timeReqUserLocal.Weekday() {
 				timeReqUserLocal = timeReqUserLocal.AddDate(0, 0, 1)
 			}
 		}
 		timeReqUtc := timeReqUserLocal.UTC()
 
-		re.PrivateMsg = fmt.Sprintf("<t:%d>, <t:%d:R>",
+		re.PublicMsg = fmt.Sprintf("<t:%d>, <t:%d:R>",
 			timeReqUtc.Unix(),
 			timeReqUtc.Unix())
 	}
